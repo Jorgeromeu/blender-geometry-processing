@@ -1,5 +1,5 @@
-import bmesh
-import bpy
+from bpyutil import *
+from meshutil import *
 
 class ComputeGenus(bpy.types.Operator):
     """Print genus of mesh"""
@@ -8,25 +8,21 @@ class ComputeGenus(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        scene = context.scene
-        obj: bpy.types = bpy.context.object
+
+        obj = get_selected_object(context)
+
         if obj is None:
             self.report({'ERROR'}, "No object selected!")
 
         mesh = obj.data
-
         bm = bmesh.new()
         bm.from_mesh(mesh)
 
-        n_verts = len(list(bm.verts))
-        n_edges = len(list(bm.edges))
-        n_faces = len(list(bm.faces))
+        n_boundaries = compute_num_boundary_loops(bm)
+        genus = compute_genus(bm, n_boundaries)
 
-        genus = 1 - ((n_verts - n_edges + n_faces) / 2)
-        # genus = int(genus)
         print(genus)
 
-        bm.to_mesh(mesh)
         bm.free()
 
         return {'FINISHED'}

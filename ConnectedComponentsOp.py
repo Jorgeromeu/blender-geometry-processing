@@ -1,7 +1,7 @@
 import bmesh
-import bpy
 
-from meshutil import neighbors
+from bpyutil import *
+from meshutil import compute_connected_components
 
 class ConnectedComponentsOp(bpy.types.Operator):
     """Print genus of mesh"""
@@ -10,41 +10,16 @@ class ConnectedComponentsOp(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        scene = context.scene
-        obj: bpy.types = bpy.context.object
+        obj = get_selected_object(context)
+
         if obj is None:
             self.report({'ERROR'}, "No object selected!")
 
         mesh = obj.data
-
         bm = bmesh.new()
         bm.from_mesh(mesh)
 
-        unvisited = set(bm.verts)
-
-        n_components = 0
-
-        while unvisited:
-
-            n_components += 1
-
-            # select a random unvisited vertex
-            v: bmesh.types.BMVert = next(iter(unvisited))
-
-            # traverse
-            queue = [v]
-            unvisited.remove(v)
-            while queue:
-                v = queue.pop(0)
-
-                # print(v.index)
-
-                for neighbor in neighbors(v):
-                    if neighbor in unvisited:
-                        queue.append(neighbor)
-                        unvisited.remove(neighbor)
-
-        print(n_components)
+        print(compute_connected_components(bm))
 
         bm.to_mesh(mesh)
         bm.free()
