@@ -1,7 +1,7 @@
 import bmesh
 import bpy
 
-from meshutil import neighbors
+from meshutil import neighbors, is_boundary_edge
 
 class BoundaryLoopsOp(bpy.types.Operator):
     """Print genus of mesh"""
@@ -10,6 +10,7 @@ class BoundaryLoopsOp(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+
         scene = context.scene
         obj: bpy.types = bpy.context.object
         if obj is None:
@@ -20,7 +21,16 @@ class BoundaryLoopsOp(bpy.types.Operator):
         bm = bmesh.new()
         bm.from_mesh(mesh)
 
-        unvisited = set(bm.verts)
+        boundary_edges = {e for e in bm.edges if is_boundary_edge(e)}
+        boundary_verts = set()
+
+        for e in boundary_edges:
+            s, t = e.verts
+            if is_boundary_edge(e):
+                boundary_verts.add(s)
+                boundary_verts.add(t)
+
+        unvisited = set(boundary_verts)
 
         n_components = 0
 
@@ -28,14 +38,8 @@ class BoundaryLoopsOp(bpy.types.Operator):
 
             n_components += 1
 
-            # select a random unvisited vertex
+            # select a random unvisited edge
             v: bmesh.types.BMVert = next(iter(unvisited))
-
-            edges = v.link_edges
-            for e in edges:
-                e: bmesh.types.BMEdge = e
-                edge_faces = e.link_faces
-
 
             # traverse
             queue = [v]
@@ -43,15 +47,14 @@ class BoundaryLoopsOp(bpy.types.Operator):
             while queue:
                 v = queue.pop(0)
 
-                # print(v.index)
-
-                for neighbor in neighbors(v):
+                for neighbor in neighbors(v, only_boundaries=True):
                     if neighbor in unvisited:
                         queue.append(neighbor)
                         unvisited.remove(neighbor)
 
         print(n_components)
 
+        bm.to_mesh(mesh)
         bm.free()
 
         return {'FINISHED'}
