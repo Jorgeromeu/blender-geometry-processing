@@ -1,7 +1,9 @@
+from BoundaryLoops import *
 from ComputeGenus import *
 from ConnectedComponentsOp import *
 from ExampleOperator import *
 from ExamplePanel import *
+from VolumeOperator import *
 
 bl_info = {
     "name": "Geometric Data Processing",
@@ -14,7 +16,9 @@ bl_info = {
     "category": "Generic"
 }
 
-classes = [ExampleOperator, ComputeGenus, ConnectedComponentsOp, ExamplePanel]
+classes = [ExampleOperator, ComputeGenus,
+           ConnectedComponentsOp, ExamplePanel,
+           VolumeOperator, BoundaryLoopsOp]
 
 def menu_func(self, context):
     self.layout.operator(ExampleOperator.bl_idname)
@@ -27,6 +31,8 @@ def register():
     bpy.types.VIEW3D_MT_object.append(menu_func)  # Adds the new operator to an existing menu.
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(ComputeGenus.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(ConnectedComponentsOp.bl_idname))
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(VolumeOperator.bl_idname))
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(BoundaryLoopsOp.bl_idname))
 
 def unregister():
     print('unregistered')

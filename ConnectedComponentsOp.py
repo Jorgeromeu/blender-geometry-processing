@@ -1,22 +1,11 @@
 import bmesh
 import bpy
 
-def neighbors(v: bmesh.types.BMVert) -> list[bmesh.types.BMVert]:
-    ns = []
-    for e in v.link_edges:
-
-        neighbor = None
-        if v == e.verts[0]:
-            neighbor = e.verts[1]
-        else:
-            neighbor = e.verts[0]
-        ns.append(neighbor)
-
-    return ns
+from meshutil import neighbors
 
 class ConnectedComponentsOp(bpy.types.Operator):
     """Print genus of mesh"""
-    bl_idname = "object.computegenus"
+    bl_idname = "object.conectedcomponents"
     bl_label = "Connected Components"
     bl_options = {'REGISTER', 'UNDO'}
 

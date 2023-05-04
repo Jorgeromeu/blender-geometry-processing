@@ -1,10 +1,9 @@
 import bmesh
 import bpy
-import numpy as np
 
 class ComputeGenus(bpy.types.Operator):
     """Print genus of mesh"""
-    bl_idname = "object.computegenus"
+    bl_idname = "object.genus"
     bl_label = "Compute Genus"
     bl_options = {'REGISTER', 'UNDO'}
 
