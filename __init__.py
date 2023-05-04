@@ -1,5 +1,6 @@
+from ComputeGenus import *
+from ConnectedComponentsOp import *
 from ExampleOperator import *
-from MeshOperator import *
 from ExamplePanel import *
 
 bl_info = {
@@ -13,7 +14,7 @@ bl_info = {
     "category": "Generic"
 }
 
-classes = [ExampleOperator, TweakMeshOperator, ExamplePanel]
+classes = [ExampleOperator, ComputeGenus, ConnectedComponentsOp, ExamplePanel]
 
 def menu_func(self, context):
     self.layout.operator(ExampleOperator.bl_idname)
@@ -24,8 +25,8 @@ def register():
         bpy.utils.register_class(c)
 
     bpy.types.VIEW3D_MT_object.append(menu_func)  # Adds the new operator to an existing menu.
-
-    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(TweakMeshOperator.bl_idname))
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(ComputeGenus.bl_idname))
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(ConnectedComponentsOp.bl_idname))
 
 def unregister():
     print('unregistered')
