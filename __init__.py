@@ -1,5 +1,9 @@
+from ExampleOperator import *
+from MeshOperator import *
+from ExamplePanel import *
+
 bl_info = {
-    "name": "Geometric Data Procesing",
+    "name": "Geometric Data Processing",
     "author": "Group16",
     "description": "",
     "blender": (3, 5, 0),
@@ -9,23 +13,21 @@ bl_info = {
     "category": "Generic"
 }
 
-
-import bpy
-
-from .ObjectMoveX import *
-
-# # from ObjectMoveX import ObjectMoveX
-# from . import ObjectMoveX
+classes = [ExampleOperator, TweakMeshOperator, ExamplePanel]
 
 def menu_func(self, context):
-    self.layout.operator(ObjectMoveX.bl_idname)
-
+    self.layout.operator(ExampleOperator.bl_idname)
 
 def register():
-    bpy.utils.register_class(ObjectMoveX)
+    print('registered')
+    for c in classes:
+        bpy.utils.register_class(c)
+
     bpy.types.VIEW3D_MT_object.append(menu_func)  # Adds the new operator to an existing menu.
 
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(TweakMeshOperator.bl_idname))
 
 def unregister():
-    bpy.utils.unregister_class(ObjectMoveX)
-
+    print('unregistered')
+    for c in classes:
+        bpy.utils.unregister_class(c)
