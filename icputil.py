@@ -1,5 +1,4 @@
 import random
-import time
 
 import bmesh
 from mathutils import Vector
@@ -13,7 +12,9 @@ def get_nearest_naive(points, point):
 
 from kd_tree import KDTree
 
-def icp(obj_P, obj_Q, num_iterations=100, eps=0.001, sample_rate=0.5, k=1):
+def icp(obj_P, obj_Q, num_iterations=100, eps=0.001, sample_rate=0.5, k=1) -> (bool, int):
+    converged = False
+    num_iterations_so_far = 0
 
     qs = [obj_Q.matrix_world @ q.co for q in obj_P.data.vertices]
 
@@ -21,7 +22,7 @@ def icp(obj_P, obj_Q, num_iterations=100, eps=0.001, sample_rate=0.5, k=1):
     qs_kdtree = KDTree(qs)
 
     for i in range(num_iterations):
-        print(i)
+        num_iterations_so_far += 1
 
         enter_editmode()
         P = bmesh.from_edit_mesh(obj_P.data)
@@ -34,14 +35,13 @@ def icp(obj_P, obj_Q, num_iterations=100, eps=0.001, sample_rate=0.5, k=1):
 
         # check if converged
         trans_norm = np.linalg.norm(t_opt)
-
-        print(i, trans_norm)
-
         if trans_norm <= eps and np.allclose(r_opt, np.eye(3), atol=eps):
-            print('converged')
+            converged = True
             break
 
         rigid_transform(t_opt, r_opt, obj_P)
+   
+    return converged, num_iterations_so_far
 
 def centroid(ps: list[Vector]):
     p_sum = Vector((0, 0, 0))
@@ -55,10 +55,8 @@ def icp_step(ps: list[Vector],
              qs_kdtree: KDTree,
              sample_rate: float,
              k: float) -> (np.ndarray, np.ndarray):
-
     # sample n random points in mesh P
     n_samples = int(sample_rate * len(ps))
-
     ps_samples = random.sample(ps, n_samples)
 
     triples = []
@@ -66,34 +64,32 @@ def icp_step(ps: list[Vector],
         q, dist = qs_kdtree.get_nearest_neighbor(p)
         triples.append((p, q, dist))
 
-    # sort triples based on distance
+    # compute median distance
     triples = sorted(triples, key=lambda t: t[2])
-
     median_distance = triples[len(triples) // 2][2]
 
     # filter out triples that don't satisfy the k*median condition
     filtered_triples = [t for t in triples if t[2] <= k * median_distance]
 
+    # compute centroids
     centroid_p = np.array(centroid([t[0] for t in filtered_triples]))
     centroid_q = np.array(centroid([t[1] for t in filtered_triples]))
 
-    mat_M = np.zeros((3, 3))
+    # compute covariance matrix
+    covariance_matrix = np.zeros((3, 3))
     for pi, qi, _ in filtered_triples:
-        mat_M += np.outer(np.array(pi) - centroid_p, np.array(qi) - centroid_q)
-    mat_M /= len(filtered_triples)
+        covariance_matrix += np.outer(np.array(pi) - centroid_p, np.array(qi) - centroid_q)
+    covariance_matrix /= len(filtered_triples)
 
     # singular value decomposition
-    U, _, Vt, = np.linalg.svd(mat_M, full_matrices=False)
+    U, _, Vt, = np.linalg.svd(covariance_matrix, full_matrices=False)
     V = Vt.transpose()
     Ut = U.transpose()
 
+    # compute optimal rotation and translation
     m = np.eye(3)
     m[2, 2] = np.linalg.det((V @ Ut))
     r_opt = V @ m @ Ut
     t_opt = centroid_q - r_opt @ centroid_p
-
-    # r_opt_mu = mathutils.Matrix(r_opt)
-    # ex, ey, ez = r_opt_mu.to_euler("XYZ")
-    # print('eulerangles', [np.degrees(r) for r in [ex, ey, ez]])
 
     return r_opt, t_opt
