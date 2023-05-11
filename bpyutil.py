@@ -1,5 +1,8 @@
 import bpy
+import numpy as np
 from bmesh.types import BMesh
+from mathutils import Matrix
+
 
 def get_selected_object(ctx: bpy.context) -> bpy.types.Object:
     return bpy.context.object
@@ -25,3 +28,11 @@ def update_viewports():
         if area.type == 'VIEW_3D':
             area.tag_redraw()
     bpy.ops.wm.save_mainfile()
+
+def rigid_transform(t: np.ndarray, r: np.ndarray, obj):
+    translation_matrix = Matrix.Translation(t)
+    rotation_matrix = np.eye(4)
+    rotation_matrix[:3, :3] = r
+    rotation_matrix = Matrix(rotation_matrix)
+    transform_matrix = translation_matrix @ rotation_matrix
+    obj.matrix_world = transform_matrix @ obj.matrix_world

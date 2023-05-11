@@ -1,6 +1,5 @@
 import random
 
-import bpy
 import mathutils
 import numpy as np
 from mathutils import Vector
@@ -19,20 +18,18 @@ def centroid(ps: list[Vector]):
 
     return p_sum / len(ps)
 
-def basic_icp(ps: list[Vector], qs: list[Vector], sample_rate: float, k: float):
+def icp_step(ps: list[Vector], qs: list[Vector], sample_rate: float, k: float) -> (np.ndarray, np.ndarray):
     # create kd tree from verts in mesh Q
     tree = KDTree(qs)
 
     # sample n random points in mesh P
     n_samples = int(sample_rate * len(ps))
-    print('n_samples', n_samples)
 
     ps_samples = random.sample(ps, n_samples)
 
     triples = []
     for p in ps_samples:
         q, dist = tree.get_nearest_neighbor(p)
-        # q, dist = get_nearest_naive(qs, p)
         triples.append((p, q, dist))
 
     # sort triples based on distance
@@ -48,10 +45,7 @@ def basic_icp(ps: list[Vector], qs: list[Vector], sample_rate: float, k: float):
 
     mat_M = np.zeros((3, 3))
     for pi, qi, _ in filtered_triples:
-        m1 = (np.array(pi) - centroid_p)
-        m2 = (np.array(qi) - centroid_q)
-        diff = np.outer(m1, m2)
-        mat_M += diff
+        mat_M += np.outer(np.array(pi)-centroid_p, np.array(qi)-centroid_q)
     mat_M /= len(filtered_triples)
 
     # singular value decomposition
@@ -62,12 +56,10 @@ def basic_icp(ps: list[Vector], qs: list[Vector], sample_rate: float, k: float):
     m = np.eye(3)
     m[2, 2] = np.linalg.det((V @ Ut))
     r_opt = V @ m @ Ut
-    # r_opt = U @ m @ Vt
-
-    r_opt_mu = mathutils.Matrix(r_opt)
-    ex, ey, ez = r_opt_mu.to_euler("XYZ")
-
     t_opt = centroid_q - r_opt @ centroid_p
 
-    print('eulerangles', [np.degrees(r) for r in [ex, ey, ez]])
-    print(t_opt)
+    # r_opt_mu = mathutils.Matrix(r_opt)
+    # ex, ey, ez = r_opt_mu.to_euler("XYZ")
+    # print('eulerangles', [np.degrees(r) for r in [ex, ey, ez]])
+
+    return r_opt, t_opt
