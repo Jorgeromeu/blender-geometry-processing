@@ -1,7 +1,7 @@
 import bmesh
 
-from bpyutil import *
-from meshutil import compute_connected_components
+from .bpyutil import *
+from .meshutil import compute_connected_components
 
 class ConnectedComponentsOp(bpy.types.Operator):
     """Print genus of mesh"""

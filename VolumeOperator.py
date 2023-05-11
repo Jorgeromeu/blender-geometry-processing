@@ -1,6 +1,6 @@
-from bpyutil import *
+import bmesh
 
-from meshutil import *
+from .meshutil import *
 
 class VolumeOperator(bpy.types.Operator):
     """Print genus of mesh"""
@@ -9,7 +9,6 @@ class VolumeOperator(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-
         obj = get_selected_object(context)
 
         if obj is None:

@@ -1,10 +1,10 @@
-from BoundaryLoops import *
-from ComputeGenus import *
-from ConnectedComponentsOp import *
-from ExampleOperator import *
-from ExamplePanel import *
-from VolumeOperator import *
-from BasicICP import *
+from .BasicICP import *
+from .BoundaryLoops import *
+from .ComputeGenus import *
+from .ConnectedComponentsOp import *
+from .ExampleOperator import *
+from .ExamplePanel import *
+from .VolumeOperator import *
 
 bl_info = {
     "name": "Geometric Data Processing",
@@ -25,7 +25,7 @@ def menu_func(self, context):
     self.layout.operator(ExampleOperator.bl_idname)
 
 def register():
-    print('registered')
+    print('gdp-addon registered')
     for c in classes:
         bpy.utils.register_class(c)
 
@@ -37,6 +37,6 @@ def register():
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(BasicICP.bl_idname))
 
 def unregister():
-    print('unregistered')
+    print('gdp-addon unregistered')
     for c in classes:
         bpy.utils.unregister_class(c)

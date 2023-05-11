@@ -7,7 +7,7 @@ def get_selected_object(ctx: bpy.context) -> bpy.types.Object:
 def enter_editmode():
     bpy.ops.object.mode_set(mode='EDIT')
 
-def enter_object_mode():
+def enter_objectmode():
     bpy.ops.object.mode_set(mode='OBJECT')
 
 def clear_editmode_selection(bm: BMesh):

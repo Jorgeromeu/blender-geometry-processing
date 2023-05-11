@@ -1,5 +1,5 @@
-from bpyutil import *
-from meshutil import *
+import bmesh
+from .meshutil import *
 
 class ComputeGenus(bpy.types.Operator):
     """Print genus of mesh"""
@@ -8,7 +8,6 @@ class ComputeGenus(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-
         obj = get_selected_object(context)
 
         if obj is None:

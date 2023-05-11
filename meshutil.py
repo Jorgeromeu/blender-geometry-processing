@@ -1,6 +1,6 @@
 from bmesh.types import BMVert, BMEdge, BMesh
 
-import bpyutil
+from .bpyutil import *
 
 def neighbors(v: BMVert, only_boundaries=False) -> list[BMVert]:
     neighbors = []
@@ -33,11 +33,11 @@ def compute_num_boundary_loops(bm: BMesh):
     # find all edges that are boundaries
     boundary_edges = {e for e in bm.edges if is_boundary_edge(e)}
 
-    bpyutil.clear_editmode_selection(bm)
+    clear_editmode_selection(bm)
     for e in boundary_edges:
         e.select = True
-    bpyutil.switch_select_mode('EDGE')
-    bpyutil.update_viewports()
+    switch_select_mode('EDGE')
+    update_viewports()
 
     # get all vertices that lie on a boundary
     boundary_verts = set()

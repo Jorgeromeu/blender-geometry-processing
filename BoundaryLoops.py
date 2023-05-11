@@ -1,9 +1,7 @@
 import bmesh
-import bpy
 
-import bpyutil
-from bpyutil import *
-from meshutil import compute_num_boundary_loops
+from .bpyutil import *
+from .meshutil import compute_num_boundary_loops
 
 class BoundaryLoopsOp(bpy.types.Operator):
     """Print genus of mesh"""

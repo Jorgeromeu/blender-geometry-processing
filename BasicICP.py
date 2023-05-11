@@ -1,9 +1,7 @@
 import bmesh
+
+import bpyutil
 from icputil import *
-import bpy
-
-from bpyutil import *
-
 
 class BasicICP(bpy.types.Operator):
     """Print genus of mesh"""
@@ -17,12 +15,16 @@ class BasicICP(bpy.types.Operator):
         if len(objs) != 2:
             self.report({'ERROR'}, "Must select two objects")
 
-        obj1, obj2 = objs
+        obj_P, obj_Q = objs
 
-        enter_editmode()
-        mesh1 = bmesh.from_edit_mesh(obj1.data)
-        mesh2 = bmesh.from_edit_mesh(obj2.data)
+        bpyutil.enter_editmode()
+        P = bmesh.from_edit_mesh(obj_P.data)
+        Q = bmesh.from_edit_mesh(obj_Q.data)
 
-        basic_registration(mesh1, mesh2, 100)
+        p_points = [obj_P.matrix_world @ p.co for p in P.verts]
+        q_points = [obj_Q.matrix_world @ q.co for q in Q.verts]
+
+        basic_icp(p_points, q_points, 1, 100)
+        bpyutil.enter_objectmode()
 
         return {'FINISHED'}
