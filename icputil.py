@@ -1,8 +1,10 @@
 import random
+import time
 
-import mathutils
-import numpy as np
+import bmesh
 from mathutils import Vector
+
+from bpyutil import *
 
 def get_nearest_naive(points, point):
     nearest = min(points, key=lambda p: (p - point).length)
@@ -11,6 +13,36 @@ def get_nearest_naive(points, point):
 
 from kd_tree import KDTree
 
+def icp(obj_P, obj_Q, num_iterations=100, eps=0.001, sample_rate=0.5, k=1):
+
+    qs = [obj_Q.matrix_world @ q.co for q in obj_P.data.vertices]
+
+    # compute kdtree of Q
+    qs_kdtree = KDTree(qs)
+
+    for i in range(num_iterations):
+        print(i)
+
+        enter_editmode()
+        P = bmesh.from_edit_mesh(obj_P.data)
+        Q = bmesh.from_edit_mesh(obj_Q.data)
+
+        p_points = [obj_P.matrix_world @ p.co for p in P.verts]
+        q_points = [obj_Q.matrix_world @ q.co for q in Q.verts]
+        r_opt, t_opt = icp_step(p_points, q_points, qs_kdtree, sample_rate, k)
+        enter_objectmode()
+
+        # check if converged
+        trans_norm = np.linalg.norm(t_opt)
+
+        print(i, trans_norm)
+
+        if trans_norm <= eps and np.allclose(r_opt, np.eye(3), atol=eps):
+            print('converged')
+            break
+
+        rigid_transform(t_opt, r_opt, obj_P)
+
 def centroid(ps: list[Vector]):
     p_sum = Vector((0, 0, 0))
     for p in ps:
@@ -18,9 +50,11 @@ def centroid(ps: list[Vector]):
 
     return p_sum / len(ps)
 
-def icp_step(ps: list[Vector], qs: list[Vector], sample_rate: float, k: float) -> (np.ndarray, np.ndarray):
-    # create kd tree from verts in mesh Q
-    tree = KDTree(qs)
+def icp_step(ps: list[Vector],
+             qs: list[Vector],
+             qs_kdtree: KDTree,
+             sample_rate: float,
+             k: float) -> (np.ndarray, np.ndarray):
 
     # sample n random points in mesh P
     n_samples = int(sample_rate * len(ps))
@@ -29,7 +63,7 @@ def icp_step(ps: list[Vector], qs: list[Vector], sample_rate: float, k: float) -
 
     triples = []
     for p in ps_samples:
-        q, dist = tree.get_nearest_neighbor(p)
+        q, dist = qs_kdtree.get_nearest_neighbor(p)
         triples.append((p, q, dist))
 
     # sort triples based on distance
@@ -45,7 +79,7 @@ def icp_step(ps: list[Vector], qs: list[Vector], sample_rate: float, k: float) -
 
     mat_M = np.zeros((3, 3))
     for pi, qi, _ in filtered_triples:
-        mat_M += np.outer(np.array(pi)-centroid_p, np.array(qi)-centroid_q)
+        mat_M += np.outer(np.array(pi) - centroid_p, np.array(qi) - centroid_q)
     mat_M /= len(filtered_triples)
 
     # singular value decomposition

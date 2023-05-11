@@ -1,6 +1,3 @@
-import bmesh
-
-from bpyutil import *
 from icputil import *
 
 class BasicICP(bpy.types.Operator):
@@ -9,23 +6,28 @@ class BasicICP(bpy.types.Operator):
     bl_label = "Basic ICP"
     bl_options = {'REGISTER', 'UNDO'}
 
+    n_iterations: bpy.props.IntProperty(name='Max iterations', default=100, min=1, max=5000)
+    epsilon: bpy.props.FloatProperty(name='Epsilon', default=0.1, min=0.0)
+    sample_factor: bpy.props.FloatProperty(name='Sample factor', default=0.8, min=0.1, max=1)
+    k: bpy.props.FloatProperty(name='k factor', default=1, min=0)
+
     def execute(self, context):
         objs = bpy.context.selected_objects
 
         if len(objs) != 2:
             self.report({'ERROR'}, "Must select two objects")
+            return {'CANCELLED'}
 
-        obj_P, obj_Q = objs
-
-        for i in range(10):
-            enter_editmode()
-            P = bmesh.from_edit_mesh(obj_P.data)
-            Q = bmesh.from_edit_mesh(obj_Q.data)
-
-            p_points = [obj_P.matrix_world @ p.co for p in P.verts]
-            q_points = [obj_Q.matrix_world @ q.co for q in Q.verts]
-            r_opt, t_opt = icp_step(p_points, q_points, 1, 100)
-            enter_objectmode()
-            rigid_transform(t_opt, r_opt, obj_P)
+        icp(objs[0], objs[1], self.n_iterations, self.epsilon, self.sample_factor, self.k)
 
         return {'FINISHED'}
+
+    def draw(self, context):
+        layout: bpy.types.UILayout = self.layout
+        col = layout.column()
+
+        col.prop(self, "n_iterations")
+        col.prop(self, "epsilon")
+        col.separator()
+        col.prop(self, "sample_factor")
+        col.prop(self, "k")
