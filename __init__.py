@@ -4,6 +4,7 @@ from ConnectedComponentsOp import *
 from ExampleOperator import *
 from ExamplePanel import *
 from VolumeOperator import *
+from BasicICP import *
 
 bl_info = {
     "name": "Geometric Data Processing",
@@ -18,7 +19,7 @@ bl_info = {
 
 classes = [ExampleOperator, ComputeGenus,
            ConnectedComponentsOp, ExamplePanel,
-           VolumeOperator, BoundaryLoopsOp]
+           VolumeOperator, BoundaryLoopsOp, BasicICP]
 
 def menu_func(self, context):
     self.layout.operator(ExampleOperator.bl_idname)
@@ -33,6 +34,7 @@ def register():
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(ConnectedComponentsOp.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(VolumeOperator.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(BoundaryLoopsOp.bl_idname))
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(BasicICP.bl_idname))
 
 def unregister():
     print('unregistered')

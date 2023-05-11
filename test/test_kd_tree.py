@@ -1,18 +1,18 @@
-import time
+import os
 import unittest
 import random
 
-import matplotlib.pyplot as plt
 import numpy as np
-from kd_tree import *
+from mathutils import Vector
 
-
-def distance(a, b):
-    return sum((x - b[i]) ** 2 for i, x in enumerate(a))
+from kd_tree import KDTree, distance
 
 
 def rand_point(dim):
-    return [round(random.uniform(-1, 1), 3) for d in range(dim)]
+    x, y, z = [random.uniform(-1, 1) for d in range(dim)]
+    v = Vector((x, y, z))
+    print(v.x)
+    return v
 
 
 def get_nearest_naive(points, point):
@@ -35,3 +35,6 @@ class KDTreeUnitTest(unittest.TestCase):
             naive_results.append(get_nearest_naive(points, q))
 
         self.assertTrue(np.allclose(kd_tree_results, naive_results), "Mismatch in closest point")
+
+if __name__ == '__main__':
+    unittest.main()

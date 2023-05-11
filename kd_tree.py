@@ -1,22 +1,21 @@
 import time
 from math import floor, inf
-
-from matplotlib import pyplot as plt
+from mathutils import Vector
 
 
 def median(num):
     return num >> 1
 
 
-def distance(a, b):
-    return sum((x - b[i]) ** 2 for i, x in enumerate(a))
-
+def distance(p1: Vector, p2: Vector):
+    # return sum((x - b[i]) ** 2 for i, x in enumerate(a))
+    return (p1 - p2).length
 
 class KDTree:
 
     def __init__(self, points, k=3):
 
-        def build(points, depth):
+        def build(points: list[Vector], depth: int):
             if len(points) == 0:
                 return None
 
@@ -25,6 +24,7 @@ class KDTree:
 
             _axis = depth % k
             # sort values in ascending order for corresponding axis.
+            print(points[0].x)
             points.sort(key=lambda x: x[_axis])
             m = median(len(points))
             return [build(points[:m], depth + 1), build(points[m + 1:], depth + 1), points[m]]
