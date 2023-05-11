@@ -1,2 +1,2 @@
 import os 
-os.system("/usr/bin/blender start.blend")
+os.system("/usr/bin/blender blend/start.blend")
