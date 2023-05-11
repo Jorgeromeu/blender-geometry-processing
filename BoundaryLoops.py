@@ -4,7 +4,7 @@ from .bpyutil import *
 from .meshutil import compute_boundary_loops
 
 class BoundaryLoopsOp(bpy.types.Operator):
-    """Print genus of mesh"""
+    """Compute Boundary Loops of mesh"""
     bl_idname = "object.boundaryloops"
     bl_label = "Compute Boundary Loops"
     bl_options = {'REGISTER', 'UNDO'}

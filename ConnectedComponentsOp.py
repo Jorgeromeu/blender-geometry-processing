@@ -4,7 +4,7 @@ from .bpyutil import *
 from .meshutil import compute_connected_components
 
 class ConnectedComponentsOp(bpy.types.Operator):
-    """Print genus of mesh"""
+    """Print number of connected components of mesh"""
     bl_idname = "object.conectedcomponents"
     bl_label = "Connected Components"
     bl_options = {'REGISTER', 'UNDO'}

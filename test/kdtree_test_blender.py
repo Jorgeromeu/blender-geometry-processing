@@ -1,5 +1,10 @@
 import random
 
+"""
+WARNING: this test must be run with blender, to use mathutils
+blender --background --python path/to/this/script
+"""
+
 import numpy as np
 from mathutils import Vector
 from numpy import inf

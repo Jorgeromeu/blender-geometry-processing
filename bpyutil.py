@@ -30,6 +30,14 @@ def update_viewports():
     bpy.ops.wm.save_mainfile()
 
 def rigid_transform(t: np.ndarray, r: np.ndarray, obj):
+
+    """
+    Transform an object according to a vector and rotation matrix
+    :param t: translation vector
+    :param r: 3x3 rotation matrix
+    :param obj: the object to be transformed
+    """
+
     translation_matrix = Matrix.Translation(t)
     rotation_matrix = np.eye(4)
     rotation_matrix[:3, :3] = r

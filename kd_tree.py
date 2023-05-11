@@ -1,15 +1,15 @@
+from typing import Generic, TypeVar
+
 from mathutils import Vector
 from numpy import inf
 
-def distance(p1: Vector, p2: Vector):
-    return (p1 - p2).length
+# P can be any point representation, which can be indexed, and
+# distance can be computed with provided distance fun
+P = TypeVar('P')
 
-def median(num: int):
-    return num >> 1
+class KDTree(Generic[P]):
 
-class KDTree:
-
-    def __init__(self, points: list[Vector], k=3):
+    def __init__(self, points: list[P], dist_fun, dim=3):
 
         def build(points, depth):
             if len(points) == 0:
@@ -18,26 +18,27 @@ class KDTree:
             if len(points) == 1:
                 return [None, None, points[0]]
 
-            _axis = depth % k
-            # sort values in ascending order for corresponding axis.
+            # cycle axis with depth
+            _axis = depth % dim
 
+            # sort values in ascending order for corresponding axis.
             points.sort(key=lambda x: x[_axis])
-            m = median(len(points))
-            return [build(points[:m], depth + 1), build(points[m + 1:], depth + 1), points[m]]
+            median = len(points) // 2
+            return [build(points[:median], depth + 1), build(points[median + 1:], depth + 1), points[median]]
 
         def nearest_neighbour(node, point, closest_point, closest_dist, depth):
             if node is None:
                 return closest_point, closest_dist
 
             left, right, cur = node[0], node[1], node[2]
-            dist = distance(point, cur)
+            dist = self.dist_fun(point, cur)
 
             if dist < closest_dist:
                 closest_dist = dist
                 closest_point = cur
 
             # decide which side to go to.
-            _axis = depth % k
+            _axis = depth % dim
             if point[_axis] < cur[_axis]:
                 good_side = left
                 bad_side = right
@@ -52,6 +53,7 @@ class KDTree:
 
             return closest_point, closest_dist
 
+        self.dist_fun = dist_fun
         self._tree = build(points, depth=0)
         self._get_nn = lambda p: nearest_neighbour(node=self._tree, point=p, closest_point=None, closest_dist=inf,
                                                    depth=0)
@@ -59,4 +61,3 @@ class KDTree:
     def get_nearest_neighbor(self, point: Vector) -> (Vector, float):
         closest_point, closest_distance = self._get_nn(point)
         return closest_point, closest_distance
-
