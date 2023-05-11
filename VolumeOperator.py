@@ -13,6 +13,7 @@ class VolumeOperator(bpy.types.Operator):
 
         if obj is None:
             self.report({'ERROR'}, "No object selected!")
+            return {'CANCELLED'}
 
         mesh = obj.data
         bm = bmesh.new()
@@ -22,8 +23,7 @@ class VolumeOperator(bpy.types.Operator):
         bmesh.ops.triangulate(bm, faces=bm.faces[:])
 
         total_volume = compute_mesh_volume(bm)
-
-        print(total_volume)
+        self.report({'INFO'}, f'Mesh has volume {total_volume}')
 
         bm.free()
 

@@ -22,22 +22,23 @@ def is_boundary_edge(e: BMEdge) -> bool:
     # edge is a boundary loop when it only has one adjacent face
     return len(e.link_faces) == 1
 
-def compute_genus(bm: BMesh, n_boundaries: int):
+def compute_genus(bm: BMesh, n_boundaries: int) -> int:
     n_verts = len(list(bm.verts))
     n_edges = len(list(bm.edges))
     n_faces = len(list(bm.faces))
 
     return 1 - (n_verts - n_edges + n_faces + n_boundaries) / 2
 
-def compute_num_boundary_loops(bm: BMesh):
+def compute_boundary_loops(bm: BMesh, select_edges=False) -> int:
     # find all edges that are boundaries
     boundary_edges = {e for e in bm.edges if is_boundary_edge(e)}
 
-    clear_editmode_selection(bm)
-    for e in boundary_edges:
-        e.select = True
-    switch_select_mode('EDGE')
-    update_viewports()
+    if select_edges:
+        clear_editmode_selection(bm)
+        for e in boundary_edges:
+            e.select = True
+        switch_select_mode('EDGE')
+        update_viewports()
 
     # get all vertices that lie on a boundary
     boundary_verts = set()
@@ -74,7 +75,7 @@ def compute_num_boundary_loops(bm: BMesh):
 
     return n_loops
 
-def compute_mesh_volume(bm: BMesh):
+def compute_mesh_volume(bm: BMesh) -> float:
     total_volume = 0
     for face in bm.faces:
         v1, v2, v3 = [v.co for v in face.verts]
@@ -85,7 +86,7 @@ def compute_mesh_volume(bm: BMesh):
 
     return total_volume
 
-def compute_connected_components(bm: BMesh):
+def compute_connected_components(bm: BMesh) -> int:
     n_components = 0
 
     # keep track of unvisited vertices
@@ -100,14 +101,15 @@ def compute_connected_components(bm: BMesh):
 
         # traverse, from v
         queue = [v]
+        unvisited.remove(v)
         while queue:
             v = queue.pop(0)
 
             print('visited', v.index)
-            unvisited.remove(v)
 
             for neighbor in neighbors(v):
                 if neighbor in unvisited:
                     queue.append(neighbor)
+                    unvisited.remove(neighbor)
 
     return n_components

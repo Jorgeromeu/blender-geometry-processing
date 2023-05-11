@@ -14,12 +14,14 @@ class ConnectedComponentsOp(bpy.types.Operator):
 
         if obj is None:
             self.report({'ERROR'}, "No object selected!")
+            return {'CANCELLED'}
 
         mesh = obj.data
         bm = bmesh.new()
         bm.from_mesh(mesh)
 
-        print('connected components', compute_connected_components(bm))
+        n_components = compute_connected_components(bm)
+        self.report({'INFO'}, f"Mesh has {n_components} connected components")
 
         bm.to_mesh(mesh)
         bm.free()
