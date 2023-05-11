@@ -1,5 +1,7 @@
 import bmesh
+import bpy
 
+import bpyutil
 from bpyutil import *
 from meshutil import compute_num_boundary_loops
 
@@ -15,12 +17,9 @@ class BoundaryLoopsOp(bpy.types.Operator):
         if obj is None:
             self.report({'ERROR'}, "No object selected!")
 
-        mesh = obj.data
-        bm = bmesh.new()
-        bm.from_mesh(mesh)
+        bpy.ops.object.mode_set(mode='EDIT')
+        mesh = bmesh.from_edit_mesh(obj.data)
 
-        print(compute_num_boundary_loops(bm))
-
-        bm.free()
+        print('boundary loops', compute_num_boundary_loops(mesh))
 
         return {'FINISHED'}

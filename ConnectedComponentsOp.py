@@ -19,7 +19,7 @@ class ConnectedComponentsOp(bpy.types.Operator):
         bm = bmesh.new()
         bm.from_mesh(mesh)
 
-        print(compute_connected_components(bm))
+        print('connected components', compute_connected_components(bm))
 
         bm.to_mesh(mesh)
         bm.free()
