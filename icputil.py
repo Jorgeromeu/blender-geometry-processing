@@ -18,21 +18,39 @@ def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=1) -> (b
     :return: if algorithm converged, and in how many iterations
     """
 
+    # keep track of convergence
     converged = False
     num_iterations_so_far = 0
 
-    # kdtree of vertices of object Q
+    # kdtree of worldspace verts of object Q, for optimizing nearest neighbor queries
     qs = [obj_Q.matrix_world @ q.co for q in obj_Q.data.vertices]
     qs_kdtree = KDTree(qs, lambda p1, p2: (p1 - p2).length)
 
-    for i in range(max_iterations):
+    for _ in range(max_iterations):
         num_iterations_so_far += 1
 
         # get worldspace vertices of object P
         ps = [obj_P.matrix_world @ q.co for q in obj_P.data.vertices]
 
-        # compute optimal rigid transformation from ps to qs
-        r_opt, t_opt = optimal_rigid_transformation(ps, qs_kdtree, sample_rate, k)
+        # sample n random points in mesh P
+        n_samples = int(sample_rate * len(ps))
+        ps_samples = random.sample(ps, n_samples)
+
+        # for each sampled point, get the closest point in q and its distance
+        point_pairs = []
+        for p in ps_samples:
+            q, dist = qs_kdtree.get_nearest_neighbor(p)
+            point_pairs.append((p, q, dist))
+
+        # compute median distance, for filtering outliers
+        sorted_point_pairs = sorted(point_pairs, key=lambda t: t[2])
+        median_distance = sorted_point_pairs[n_samples // 2][2]
+
+        # filter outlier point-pairs that don't satisfy the k*median condition
+        point_pairs = [t for t in point_pairs if t[2] <= k * median_distance]
+
+        # compute optimal rigid transformation
+        r_opt, t_opt = opt_rigid_transformation(point_pairs)
 
         # check if converged, if so stop
         trans_norm = np.linalg.norm(t_opt)
@@ -40,7 +58,7 @@ def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=1) -> (b
             converged = True
             break
 
-        # transform
+        # transform object optimal transformation
         rigid_transform(t_opt, r_opt, obj_P)
 
     return converged, num_iterations_so_far
@@ -52,46 +70,24 @@ def centroid(ps: list[Vector]):
 
     return p_sum / len(ps)
 
-def optimal_rigid_transformation(ps: list[Vector],
-                                 qs_kdtree: KDTree,
-                                 sample_rate: float,
-                                 k: float) -> (np.ndarray, np.ndarray):
+def opt_rigid_transformation(point_pairs: list[(Vector, Vector, float)]):
     """
-    Compute the optimal rigid transformation from vertices ps to vertices (in kdtree) qs
-    :param ps: vertices of mesh P, to transform to Q
-    :param qs_kdtree: vertices of mesh Q, stored in quadtree
-    :param sample_rate: ratio of vertices in P to sample, between 0 and 1
-    :param k: cutoff for discarding pairs that are too far away
+    Compute the optimal rigid transformation between pairs of points
 
-    :return: rotation matrix, and translation vector corresponding to optimal rigid transformation
+    :param point_pairs: a list of pairs (p_i, q_i, dist)
+    :return: translation vector and rotation matrix for optimal rigid transformation from
+    points p_i to q_i
     """
-
-    # sample n_samples random points in mesh P
-    n_samples = int(sample_rate * len(ps))
-    ps_samples = random.sample(ps, n_samples)
-
-    # for each sampled point, get the closest point in q and its distance
-    point_pairs = []
-    for p in ps_samples:
-        q, dist = qs_kdtree.get_nearest_neighbor(p)
-        point_pairs.append((p, q, dist))
-
-    # compute median distance
-    point_pairs = sorted(point_pairs, key=lambda t: t[2])
-    median_distance = point_pairs[len(point_pairs) // 2][2]
-
-    # filter out triples that don't satisfy the k*median condition
-    filtered_point_pairs = [t for t in point_pairs if t[2] <= k * median_distance]
 
     # compute centroids
-    centroid_p = np.array(centroid([t[0] for t in filtered_point_pairs]))
-    centroid_q = np.array(centroid([t[1] for t in filtered_point_pairs]))
+    centroid_p = np.array(centroid([t[0] for t in point_pairs]))
+    centroid_q = np.array(centroid([t[1] for t in point_pairs]))
 
     # compute covariance matrix
     covariance_matrix = np.zeros((3, 3))
-    for pi, qi, _ in filtered_point_pairs:
+    for pi, qi, _ in point_pairs:
         covariance_matrix += np.outer(np.array(pi) - centroid_p, np.array(qi) - centroid_q)
-    covariance_matrix /= len(filtered_point_pairs)
+    covariance_matrix /= len(point_pairs)
 
     # singular value decomposition
     U, _, Vt, = np.linalg.svd(covariance_matrix, full_matrices=False)
