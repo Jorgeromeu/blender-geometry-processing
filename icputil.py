@@ -5,9 +5,8 @@ from kd_tree import KDTree
 from numpy.linalg import solve, svd, det
 
 
-
 def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=2.5, point_to_plane=False,
-        sampling_strategy="RANDOM_POINT") -> (bool, int):
+        sampling_strategy="RANDOM_POINT", distance_strategy="EUCLIDEAN") -> (bool, int):
     """
     Perform iterative closest point on two objects
     :param obj_P: First object, to be transformed to second one
@@ -28,7 +27,12 @@ def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=2.5, poi
     q_world = obj_Q.matrix_world
     qs = [(q_world @ q.co, q_world @ q.normal) for q in obj_Q.data.vertices]
 
-    qs_kdtree = KDTree(qs, lambda p1, p2: (p1[0] - p2[0]).length, lambda p, ax: p[0][ax])
+    distance_lambda = lambda p1, p2: (p1[0] - p2[0]).length
+    if distance_strategy == "NORMAL_WEIGHTED":
+        # Use cosine similarity to weigh the distance
+        distance_lambda = lambda p1, p2: np.dot(p1, p2) * (p1[0] - p2[0]).length
+
+    qs_kdtree = KDTree(qs, distance_lambda, lambda point, ax: point[0][ax])
 
     for _ in range(max_iterations):
         num_iterations_so_far += 1
@@ -119,21 +123,37 @@ def sample_points(obj, sample_rate=0.5, sampling_strategy="RANDOM_POINT"):
     elif sampling_strategy == "NORMAL":
         # Get world space vertices and the normals of object P
         ps_normals = [(obj.matrix_world @ p.co, p.normal.copy()) for p in obj.data.vertices]
-        # Create dictionary of normals so we can sample them uniformly
-        normal_dictionary = dict()
-        for point, normal in ps_normals:
-            key = (normal[0], normal[1], normal[2])
-            if key not in normal_dictionary.keys():
-                normal_dictionary[key] = []
-            normal_dictionary[key].append(point)
+        normal_dictionary = _construct_normal_space_buckets(ps_normals)
         n_samples = int(sample_rate * len(ps_normals))
         normal_samples = random.sample(normal_dictionary.keys(), n_samples)
         ps_samples = [random.choice(normal_dictionary[sample]) for sample in normal_samples]
         return ps_samples
     elif sampling_strategy == "STRATIFIED_NORMAL":
-        raise RuntimeError("TODO")
+        ps_normals = [(obj.matrix_world @ p.co, p.normal.copy()) for p in obj.data.vertices]
+        normal_dictionary = _construct_normal_space_buckets(ps_normals)
+        n_samples = int(sample_rate * len(ps_normals))
+        ps_samples = []
+        while len(ps_samples) < n_samples:
+            for stratum in normal_dictionary.keys():
+                ps_samples.append(random.choice(normal_dictionary[stratum]))
+        return ps_samples
     else:
         raise RuntimeError("Invalid ICP sampling strategy")
+
+
+def _construct_normal_space_buckets(ps_normals) -> dict:
+    """
+    Returns a dictionary of normal -> list[Vector].
+    The normal is represented as a triple.
+    """
+    # Create dictionary of normals so we can sample them uniformly
+    normal_dictionary = dict()
+    for point, normal in ps_normals:
+        key = (normal[0], normal[1], normal[2])
+        if key not in normal_dictionary.keys():
+            normal_dictionary[key] = []
+        normal_dictionary[key].append(point)
+    return normal_dictionary
 
 
 def opt_rigid_transformation_point_to_plane(point_pairs: list[(Vector, Vector, Vector)]):
@@ -156,7 +176,7 @@ def opt_rigid_transformation_point_to_plane(point_pairs: list[(Vector, Vector, V
 
         # create a vector of 6-D.
         ci = np.dot((p - q), nq)
-        ci_ai = ci*ai
+        ci_ai = ci * ai
         b += ci_ai
 
     # solve system that minimizes r, t: A (r t) + b = 0
@@ -167,7 +187,7 @@ def opt_rigid_transformation_point_to_plane(point_pairs: list[(Vector, Vector, V
 
     # compute approximation of rotation matrix R.
     R = np.eye(3)
-    R[0, 1] = -r3       # first row, second column.
+    R[0, 1] = -r3  # first row, second column.
     R[0, 2] = r2
     R[1, 0] = r3
     R[1, 2] = -r1
