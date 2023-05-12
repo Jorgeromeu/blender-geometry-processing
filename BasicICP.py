@@ -19,6 +19,11 @@ class BasicICP(bpy.types.Operator):
         ('POINT_TO_PLANE', 'Point to Plane', '...'),
     ])
 
+    sampling_method: bpy.props.EnumProperty(name='Point Sampling', items=[
+        ('RANDOM_POINT', 'Random point', '...'),
+        ('NORMAL', 'Normal sampling', '...'),
+    ])
+
     def execute(self, context):
         objs = bpy.context.selected_objects
 
@@ -34,9 +39,10 @@ class BasicICP(bpy.types.Operator):
 
         # Run ICP algorithm
         try:
+            sampling_strategy = "RANDOM_POINT"
             converged, iters_required = icp(objs[0], objs[1],
                                             self.max_iterations, self.epsilon,
-                                            self.sample_ratio, self.k)
+                                            self.sample_ratio, self.k, sampling_strategy=self.sampling_method)
 
             if converged:
                 self.report({'INFO'}, f'converged in {iters_required} iterations')
@@ -57,3 +63,4 @@ class BasicICP(bpy.types.Operator):
         col.prop(self, "sample_ratio")
         col.prop(self, "k")
         col.prop(self, "dist_method")
+        col.prop(self, "sampling_method")

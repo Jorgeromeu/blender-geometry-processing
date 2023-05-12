@@ -4,7 +4,8 @@ from bpyutil import *
 from kd_tree import KDTree
 
 
-def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=1, sampling_strategy="DEFAULT") -> (bool, int):
+def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=2.5, point_to_plane=False,
+        sampling_strategy="RANDOM_POINT") -> (bool, int):
     """
     Perform iterative closest point on two objects
     :param obj_P: First object, to be transformed to second one
@@ -23,7 +24,8 @@ def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=1, sampl
 
     # kdtree of worldspace verts of object Q, for optimizing nearest neighbor queries
     qs = [obj_Q.matrix_world @ q.co for q in obj_Q.data.vertices]
-    qs_kdtree = KDTree(qs, lambda p1, p2: (p1 - p2).length)
+
+    qs_kdtree = KDTree(qs, lambda p1, p2: (p1 - p2).length, lambda p, ax: p[ax])
 
     for _ in range(max_iterations):
         num_iterations_so_far += 1
@@ -48,10 +50,12 @@ def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=1, sampl
         median_distance = sorted_point_pairs[n_samples // 2][2]
 
         # filter outlier point-pairs that don't satisfy the k*median condition
-        point_pairs = [t for t in point_pairs if t[2] <= k * median_distance]
+        point_pairs = [(p, q) for (p, q, dist) in point_pairs if dist <= k * median_distance]
 
         # compute optimal rigid transformation
-        r_opt, t_opt = opt_rigid_transformation(point_pairs)
+        if point_to_plane:
+            r_opt, t_opt = opt_rigid_transformation_point_to_plane()
+        r_opt, t_opt = opt_rigid_transformation_point_to_point(point_pairs)
 
         # check if converged, if so stop
         trans_norm = np.linalg.norm(t_opt)
@@ -73,11 +77,11 @@ def centroid(ps: list[Vector]):
     return p_sum / len(ps)
 
 
-def opt_rigid_transformation(point_pairs: list[(Vector, Vector, float)]):
+def opt_rigid_transformation_point_to_point(point_pairs: list[(Vector, Vector)]):
     """
     Compute the optimal rigid transformation between pairs of points
 
-    :param point_pairs: a list of pairs (p_i, q_i, dist)
+    :param point_pairs: a list of pairs (p_i, q_i)
     :return: translation vector and rotation matrix for optimal rigid transformation from
     points p_i to q_i
     """
@@ -88,7 +92,7 @@ def opt_rigid_transformation(point_pairs: list[(Vector, Vector, float)]):
 
     # compute covariance matrix
     covariance_matrix = np.zeros((3, 3))
-    for pi, qi, _ in point_pairs:
+    for pi, qi in point_pairs:
         covariance_matrix += np.outer(np.array(pi) - centroid_p, np.array(qi) - centroid_q)
     covariance_matrix /= len(point_pairs)
 
@@ -106,16 +110,31 @@ def opt_rigid_transformation(point_pairs: list[(Vector, Vector, float)]):
     return r_opt, t_opt
 
 
-def sample_points(obj, sample_rate=0.5, sampling_strategy="DEFAULT"):
-    if (sampling_strategy == "DEFAULT"):
-        # get worldspace vertices of object P
-        ps = [obj.matrix_world @ q.co for q in obj.data.vertices]
-
+def sample_points(obj, sample_rate=0.5, sampling_strategy="RANDOM_POINT"):
+    if (sampling_strategy == "RANDOM_POINT"):
+        # Get world space vertices of object P
+        ps = [obj.matrix_world @ p.co for p in obj.data.vertices]
         # sample n random points in mesh P
         n_samples = int(sample_rate * len(ps))
         ps_samples = random.sample(ps, n_samples)
         return ps_samples
     elif (sampling_strategy == "NORMAL"):
-        pass
+        # Get world space vertices and the normals of object P
+        ps_normals = [(obj.matrix_world @ p.co, p.normal.copy()) for p in obj.data.vertices]
+        # Create dictionary of normals so we can sample them uniformly
+        normal_dictionary = dict()
+        for point, normal in ps_normals:
+            key = (normal[0], normal[1], normal[2])
+            if key not in normal_dictionary.keys():
+                normal_dictionary[key] = []
+            normal_dictionary[key].append(point)
+        n_samples = int(sample_rate * len(normal_dictionary.keys()))
+        normal_samples = random.sample(normal_dictionary.keys(), n_samples)
+        ps_samples = [random.choice(normal_dictionary[sample]) for sample in normal_samples]
+        return ps_samples
     else:
         raise RuntimeError("Invalid ICP sampling strategy")
+
+
+def opt_rigid_transformation_point_to_plane(point_pairs: list[(Vector, Vector, Vector)]):
+    pass
