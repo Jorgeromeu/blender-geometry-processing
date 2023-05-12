@@ -1,11 +1,10 @@
 import random
-
 from mathutils import Vector
-
 from bpyutil import *
 from kd_tree import KDTree
 
-def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=1) -> (bool, int):
+
+def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=1, sampling_strategy="DEFAULT") -> (bool, int):
     """
     Perform iterative closest point on two objects
     :param obj_P: First object, to be transformed to second one
@@ -29,12 +28,14 @@ def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=1) -> (b
     for _ in range(max_iterations):
         num_iterations_so_far += 1
 
-        # get worldspace vertices of object P
-        ps = [obj_P.matrix_world @ q.co for q in obj_P.data.vertices]
-
-        # sample n random points in mesh P
-        n_samples = int(sample_rate * len(ps))
-        ps_samples = random.sample(ps, n_samples)
+        # # get worldspace vertices of object P
+        # ps = [obj_P.matrix_world @ q.co for q in obj_P.data.vertices]
+        #
+        # # sample n random points in mesh P
+        # n_samples = int(sample_rate * len(ps))
+        # ps_samples = random.sample(ps, n_samples)
+        ps_samples = sample_points(obj_P, sample_rate, sampling_strategy)
+        n_samples = len(ps_samples)
 
         # for each sampled point, get the closest point in q and its distance
         point_pairs = []
@@ -63,12 +64,14 @@ def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=1) -> (b
 
     return converged, num_iterations_so_far
 
+
 def centroid(ps: list[Vector]):
     p_sum = Vector((0, 0, 0))
     for p in ps:
         p_sum += p
 
     return p_sum / len(ps)
+
 
 def opt_rigid_transformation(point_pairs: list[(Vector, Vector, float)]):
     """
@@ -101,3 +104,18 @@ def opt_rigid_transformation(point_pairs: list[(Vector, Vector, float)]):
     t_opt = centroid_q - r_opt @ centroid_p
 
     return r_opt, t_opt
+
+
+def sample_points(obj, sample_rate=0.5, sampling_strategy="DEFAULT"):
+    if (sampling_strategy == "DEFAULT"):
+        # get worldspace vertices of object P
+        ps = [obj.matrix_world @ q.co for q in obj.data.vertices]
+
+        # sample n random points in mesh P
+        n_samples = int(sample_rate * len(ps))
+        ps_samples = random.sample(ps, n_samples)
+        return ps_samples
+    elif (sampling_strategy == "NORMAL"):
+        pass
+    else:
+        raise RuntimeError("Invalid ICP sampling strategy")
