@@ -15,7 +15,7 @@ class BasicICP(bpy.types.Operator):
     k: bpy.props.FloatProperty(name='k factor', default=2.5, min=1)  # Default is 2.5 based on Masuda, 1996
 
     dist_method: bpy.props.EnumProperty(name='Distance', items=[
-        ('POINT_TO_POINT', 'Point to Point', '...'),
+        ('POINT_TO_POINT', 'Point to Point', 'use the normal...'),
         ('POINT_TO_PLANE', 'Point to Plane', '...'),
     ])
 
@@ -31,13 +31,10 @@ class BasicICP(bpy.types.Operator):
             self.report({'ERROR'}, "Select 2 objects for ICP")
             return {'CANCELLED'}
 
-        # TODO for rodrigo, use this check to toggle between point to plane and point to point
-        if self.dist_method == 'POINT_TO_POINT':
-            pass
-        elif self.dist_method == 'POINT_TO_PLANE':
-            pass
-
         # Run ICP algorithm
+        converged, iters_required = icp(objs[0], objs[1],
+                                        self.max_iterations, self.epsilon,
+                                        self.sample_ratio, self.k, self.dist_method == 'POINT_TO_PLANE')
         try:
             sampling_strategy = "RANDOM_POINT"
             converged, iters_required = icp(objs[0], objs[1],

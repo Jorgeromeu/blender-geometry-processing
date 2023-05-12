@@ -58,7 +58,7 @@ class KDTree(Generic[P]):
 
         return closest_point, closest_dist
 
-    def get_nearest_neighbor(self, point: Vector) -> (Vector, float):
+    def get_nearest_neighbor(self, point: P) -> (P, float):
         closest_point, closest_distance = self._nearest_neighbour(node=self._tree, point=point,
                                                                   closest_point=None, closest_dist=inf,
                                                                   depth=0)
