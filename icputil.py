@@ -111,14 +111,14 @@ def opt_rigid_transformation_point_to_point(point_pairs: list[(Vector, Vector)])
 
 
 def sample_points(obj, sample_rate=0.5, sampling_strategy="RANDOM_POINT"):
-    if (sampling_strategy == "RANDOM_POINT"):
+    if sampling_strategy == "RANDOM_POINT":
         # Get world space vertices of object P
         ps = [obj.matrix_world @ p.co for p in obj.data.vertices]
         # sample n random points in mesh P
         n_samples = int(sample_rate * len(ps))
         ps_samples = random.sample(ps, n_samples)
         return ps_samples
-    elif (sampling_strategy == "NORMAL"):
+    elif sampling_strategy == "NORMAL":
         # Get world space vertices and the normals of object P
         ps_normals = [(obj.matrix_world @ p.co, p.normal.copy()) for p in obj.data.vertices]
         # Create dictionary of normals so we can sample them uniformly
@@ -128,10 +128,12 @@ def sample_points(obj, sample_rate=0.5, sampling_strategy="RANDOM_POINT"):
             if key not in normal_dictionary.keys():
                 normal_dictionary[key] = []
             normal_dictionary[key].append(point)
-        n_samples = int(sample_rate * len(normal_dictionary.keys()))
+        n_samples = int(sample_rate * len(ps_normals))
         normal_samples = random.sample(normal_dictionary.keys(), n_samples)
         ps_samples = [random.choice(normal_dictionary[sample]) for sample in normal_samples]
         return ps_samples
+    elif sampling_strategy == "STRATIFIED_NORMAL":
+        raise RuntimeError("TODO")
     else:
         raise RuntimeError("Invalid ICP sampling strategy")
 
