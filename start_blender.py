@@ -1,6 +1,6 @@
 import os
 
-user = 'jorge'
+user = 'rodrigo'
 
 if user == 'jorge':
     os.system("/usr/bin/blender blend/start.blend")

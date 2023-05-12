@@ -5,7 +5,7 @@ from mathutils import Vector
 from bpyutil import *
 from kd_tree import KDTree
 
-def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=1) -> (bool, int):
+def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=1, point_to_plane=False) -> (bool, int):
     """
     Perform iterative closest point on two objects
     :param obj_P: First object, to be transformed to second one
@@ -24,7 +24,8 @@ def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=1) -> (b
 
     # kdtree of worldspace verts of object Q, for optimizing nearest neighbor queries
     qs = [obj_Q.matrix_world @ q.co for q in obj_Q.data.vertices]
-    qs_kdtree = KDTree(qs, lambda p1, p2: (p1 - p2).length)
+
+    qs_kdtree = KDTree(qs, lambda p1, p2: (p1 - p2).length, lambda p, ax: p[ax])
 
     for _ in range(max_iterations):
         num_iterations_so_far += 1
@@ -47,10 +48,12 @@ def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=1) -> (b
         median_distance = sorted_point_pairs[n_samples // 2][2]
 
         # filter outlier point-pairs that don't satisfy the k*median condition
-        point_pairs = [t for t in point_pairs if t[2] <= k * median_distance]
+        point_pairs = [(p, q) for (p, q, dist) in point_pairs if dist <= k * median_distance]
 
         # compute optimal rigid transformation
-        r_opt, t_opt = opt_rigid_transformation(point_pairs)
+        if point_to_plane:
+            r_opt, t_opt = opt_rigid_transformation_point_to_plane()
+        r_opt, t_opt = opt_rigid_transformation_point_to_point(point_pairs)
 
         # check if converged, if so stop
         trans_norm = np.linalg.norm(t_opt)
@@ -70,11 +73,11 @@ def centroid(ps: list[Vector]):
 
     return p_sum / len(ps)
 
-def opt_rigid_transformation(point_pairs: list[(Vector, Vector, float)]):
+def opt_rigid_transformation_point_to_point(point_pairs: list[(Vector, Vector)]):
     """
     Compute the optimal rigid transformation between pairs of points
 
-    :param point_pairs: a list of pairs (p_i, q_i, dist)
+    :param point_pairs: a list of pairs (p_i, q_i)
     :return: translation vector and rotation matrix for optimal rigid transformation from
     points p_i to q_i
     """
@@ -85,7 +88,7 @@ def opt_rigid_transformation(point_pairs: list[(Vector, Vector, float)]):
 
     # compute covariance matrix
     covariance_matrix = np.zeros((3, 3))
-    for pi, qi, _ in point_pairs:
+    for pi, qi in point_pairs:
         covariance_matrix += np.outer(np.array(pi) - centroid_p, np.array(qi) - centroid_q)
     covariance_matrix /= len(point_pairs)
 
@@ -101,3 +104,5 @@ def opt_rigid_transformation(point_pairs: list[(Vector, Vector, float)]):
     t_opt = centroid_q - r_opt @ centroid_p
 
     return r_opt, t_opt
+def opt_rigid_transformation_point_to_plane(point_pairs: list[(Vector, Vector, Vector)]):
+    pass
