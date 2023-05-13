@@ -1,17 +1,31 @@
 import random
+import time
+
 from mathutils import Vector
-from bpyutil import *
-from kd_tree import KDTree
 from numpy.linalg import solve, svd, det
 
+from bpyutil import *
+from kd_tree import KDTree
+
+def rmse(ob1, ob2) -> float:
+    verts_1 = np.array([np.array(ob1.matrix_world @ v.co) for v in ob1.data.vertices])
+    verts_2 = np.array([np.array(ob2.matrix_world @ v.co) for v in ob2.data.vertices])
+
+    # assume that both objects are the same one
+    assert len(verts_1) == len(verts_2)
+
+    return np.sqrt(np.mean(np.linalg.norm(verts_1 - verts_2, axis=1) ** 2))
 
 class ICP:
-    def __init__(self, max_iterations=100, eps=0.001, sample_rate=0.5, k=2.5, nu=0.1, normal_dissimilarity_thres=0.5,
+
+    def __init__(self, max_iterations=100, eps=0.001, max_points=1000, k=2.5, nu=0.1, normal_dissimilarity_thres=0.5,
                  point_to_plane=False, sampling_strategy="RANDOM_POINT", distance_strategy="EUCLIDEAN",
-                 rejection_criterion="K_MEDIAN", weighting_strategy="NONE"):
+                 rejection_criterion="K_MEDIAN", weighting_strategy="NONE", evaluation_object=None,
+                 evaluation_metric=rmse):
+
         self.max_iterations = max_iterations
         self.eps = eps
-        self.sample_rate = sample_rate
+        self.max_points = max_points
         self.k = k
         self.nu = None
         self.min_nu = nu
@@ -23,18 +37,24 @@ class ICP:
         self.weighting_strategy = weighting_strategy
         self.max_distance = -1
 
+        # used for evaluations
+        self.evaluation_object = evaluation_object
+        self.evaluation_metric = evaluation_metric
+        self.errors = []
+
+
     def icp(self, obj_P, obj_Q) -> (bool, int):
         """
         Perform iterative closest point on two objects
         :param obj_P: First object, to be transformed to second one
         :param obj_Q: Second object
-        :param max_iterations: maximum number of iterations
-        :param eps: threshold for stopping if converged
-
-        :param sample_rate: portion of points to sample in first mesh
-        :param k: cutoff distance
         :return: if algorithm converged, and in how many iterations
         """
+
+        # keep track of errors at each iteration, and time
+        self.errors = []
+        t_start = time.perf_counter()
+
         # keep track of convergence
         converged = False
         num_iterations_so_far = 0
@@ -106,6 +126,12 @@ class ICP:
             # transform object optimal transformation
             rigid_transform(t_opt, r_opt, obj_P)
 
+            # record error after iteration
+            if self.evaluation_object is not None:
+                err = self.evaluation_metric(obj_P, self.evaluation_object)
+                t_iter = time.perf_counter()
+                self.errors.append((err, t_iter - t_start))
+
         return converged, num_iterations_so_far
 
     def _centroid(self, ps: list[Vector]):
@@ -120,7 +146,6 @@ class ICP:
         Compute the optimal rigid transformation between pairs of points
 
         :param point_pairs: a list of pairs (p_i, q_i)
-        :param weighting_strategy: the method used to derive the weights for the optimization problem
         :param prev_R: the previous rotation matrix. Pass it if it is needed by the weighting strategy
         :param prev_t: the previous translation vector. Pass it if is need by the weighting strategy.
         :return: translation vector and rotation matrix for optimal rigid transformation from
@@ -211,16 +236,16 @@ class ICP:
 
         return r_opt, t_opt
 
-    def sample_points(self, obj):
+    def sample_points(self, obj) -> list[(np.ndarray, np.ndarray)]:
         """
-        Returns a list of tuples: List[(point,normal)]
+        Returns a list of tuples (point, normal)
         """
         # Get world space vertices and the normals of object P
         ps = [(obj.matrix_world @ p.co, p.normal.copy()) for p in obj.data.vertices]
-        n_samples = int(self.sample_rate * len(ps))
+        n_samples = min(len(ps) - 1, self.max_points)
+
         if self.sampling_strategy == "RANDOM_POINT":
             # Sample n random points in mesh P
-            n_samples = int(self.sample_rate * len(ps))
             ps_samples = random.sample(ps, n_samples)
             return ps_samples
         elif self.sampling_strategy == "NORMAL":

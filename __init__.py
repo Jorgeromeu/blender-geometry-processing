@@ -2,6 +2,7 @@ from .BasicICP import *
 from .BoundaryLoops import *
 from .ComputeGenus import *
 from .ConnectedComponentsOp import *
+from .EvaluationOperator import *
 from .ExamplePanel import *
 from .VolumeOperator import *
 
@@ -16,7 +17,8 @@ bl_info = {
     "category": "Generic"
 }
 
-classes = [ComputeGenus, ConnectedComponentsOp, ExamplePanel, VolumeOperator, BoundaryLoopsOp, BasicICP]
+classes = [ComputeGenus, ConnectedComponentsOp, ExamplePanel, VolumeOperator, BoundaryLoopsOp, BasicICP,
+           EvaluationOperator]
 object_ops = [ComputeGenus, ConnectedComponentsOp, VolumeOperator, BoundaryLoopsOp, BasicICP]
 
 def register():
@@ -29,6 +31,7 @@ def register():
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(VolumeOperator.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(BoundaryLoopsOp.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(BasicICP.bl_idname))
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(EvaluationOperator.bl_idname))
     # # register all operators
     # for op in object_ops:
     #     bpy.types.VIEW3D_MT_object.append(lambda self, ctx: self.layout.operator(op.bl_idname))

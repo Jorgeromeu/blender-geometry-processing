@@ -1,10 +1,21 @@
+import numpy as np
 from matplotlib import pyplot as plt
+
+from timer import Timer
 
 plt.switch_backend('TkAgg')
 
 from kd_tree import KDTree
-from test_kd_tree import rand_point, get_nearest_naive
-from timer import Timer
+
+def rand_point(dim=3):
+    return np.random.uniform(0, 1, dim)
+
+def distance(p1, p2):
+    return np.linalg.norm(p1 - p2)
+
+def get_nearest_brute(points, p):
+    nearest = min(points, key=lambda p: distance(p, points))
+    return nearest
 
 def benchmark_kdtree():
     t = Timer()
@@ -12,10 +23,13 @@ def benchmark_kdtree():
 
     # generate random points
     dim = 3
-    points = [rand_point(dim) for x in range(10000)]
+    points = [rand_point(dim) for x in range(1000)]
 
     t.start()
-    kd_tree = KDTree(points)
+    kd_tree = KDTree(points,
+                     dist_fun=distance,
+                     index_fun=lambda p, ax: p[ax])
+
     t.stop('tree construction')
 
     n_query_points = [1, 5, 10, 20, 50, 100, 200, 400, 800, 1000]
@@ -27,7 +41,7 @@ def benchmark_kdtree():
 
         t.start()
         for q in query_points:
-            get_nearest_naive(points, q)
+            get_nearest_brute(points, q)
         times_naive.append(t.stop(f'naive q={num_query}'))
 
         t.start()

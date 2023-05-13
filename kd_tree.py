@@ -1,6 +1,5 @@
 from typing import Generic, TypeVar
 
-from mathutils import Vector
 from numpy import inf
 
 # P can be any point representation, which can be indexed with index_fun, and
@@ -54,7 +53,8 @@ class KDTree(Generic[P]):
         closest_point, closest_dist = self._nearest_neighbour(good_side, point, closest_point, closest_dist, depth + 1)
 
         if abs(self.index_fun(cur, _axis) - self.index_fun(point, _axis)) ** 2 < closest_dist:
-            closest_point, closest_dist = self._nearest_neighbour(bad_side, point, closest_point, closest_dist, depth + 1)
+            closest_point, closest_dist = self._nearest_neighbour(bad_side, point, closest_point, closest_dist,
+                                                                  depth + 1)
 
         return closest_point, closest_dist
 
