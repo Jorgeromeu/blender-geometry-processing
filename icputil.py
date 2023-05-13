@@ -59,7 +59,7 @@ class ICP:
         for _ in range(self.max_iterations):
             num_iterations_so_far += 1
 
-            ps_samples = self.sample_points(obj_P, self.sample_rate, self.sampling_strategy)
+            ps_samples = self.sample_points(obj_P)
             n_samples = len(ps_samples)
 
             # for each sampled point, get the closest point in q and its distance
@@ -88,12 +88,9 @@ class ICP:
 
             # compute optimal rigid transformation.
             if self.point_to_plane:
-                r_opt, t_opt = self.opt_rigid_transformation_point_to_plane(point_pairs,
-                                                                            weighting_strategy=self.weighting_strategy,
-                                                                            prev_R=prev_R, prev_t=prev_t)
+                r_opt, t_opt = self.opt_rigid_transformation_point_to_plane(point_pairs)
             else:
                 r_opt, t_opt = self.opt_rigid_transformation_point_to_point(point_pairs,
-                                                                            weighting_strategy=self.weighting_strategy,
                                                                             prev_R=prev_R, prev_t=prev_t)
 
             # check if converged, if so stop
@@ -118,8 +115,7 @@ class ICP:
 
         return p_sum / len(ps)
 
-    def opt_rigid_transformation_point_to_point(self, point_pairs: list[(Vector, Vector)], weighting_strategy="NONE",
-                                                prev_R=None, prev_t=None):
+    def opt_rigid_transformation_point_to_point(self, point_pairs: list[(Vector, Vector)], prev_R=None, prev_t=None):
         """
         Compute the optimal rigid transformation between pairs of points
 
@@ -140,11 +136,11 @@ class ICP:
         weights_sum = 0.0
         for pi, qi, q_normal, p_normal, dist in point_pairs:
             wi = 1.0
-            if weighting_strategy == "NORMAL_SIMILARITY":
+            if self.weighting_strategy == "NORMAL_SIMILARITY":
                 wi = q_normal.dot(p_normal)
-            elif weighting_strategy == "DISTANCE":
+            elif self.weighting_strategy == "DISTANCE":
                 wi = 1.0 - (dist / self.max_distance)  # Based on Godin, 1994
-            elif weighting_strategy == "WELSCH":
+            elif self.weighting_strategy == "WELSCH":
                 welsch_vector = np.matmul(prev_R, pi) + prev_t - qi
                 welsch_norm = np.linalg.norm(welsch_vector)
                 wi = np.exp(-welsch_norm / (2 * self.nu ** 2))
@@ -167,9 +163,7 @@ class ICP:
 
         return r_opt, t_opt
 
-    def opt_rigid_transformation_point_to_plane(self, point_pairs: list[(Vector, Vector, Vector)],
-                                                weighting_strategy="NONE",
-                                                prev_R=None, prev_t=None):
+    def opt_rigid_transformation_point_to_plane(self, point_pairs: list[(Vector, Vector, Vector)]):
         A = np.zeros((6, 6))
         b = np.zeros((6,))
 
@@ -217,25 +211,25 @@ class ICP:
 
         return r_opt, t_opt
 
-    def sample_points(self, obj, sample_rate=0.5, sampling_strategy="RANDOM_POINT"):
+    def sample_points(self, obj):
         """
         Returns a list of tuples: List[(point,normal)]
         """
         # Get world space vertices and the normals of object P
         ps = [(obj.matrix_world @ p.co, p.normal.copy()) for p in obj.data.vertices]
-        n_samples = int(sample_rate * len(ps))
-        if sampling_strategy == "RANDOM_POINT":
+        n_samples = int(self.sample_rate * len(ps))
+        if self.sampling_strategy == "RANDOM_POINT":
             # Sample n random points in mesh P
-            n_samples = int(sample_rate * len(ps))
+            n_samples = int(self.sample_rate * len(ps))
             ps_samples = random.sample(ps, n_samples)
             return ps_samples
-        elif sampling_strategy == "NORMAL":
+        elif self.sampling_strategy == "NORMAL":
             # Create the normal "buckets" and sample from them
             normal_dictionary = self._construct_normal_space_buckets(ps)
             normal_samples = random.sample(normal_dictionary.keys(), n_samples)
             ps_samples = [(random.choice(normal_dictionary[sample]), sample) for sample in normal_samples]
             return ps_samples
-        elif sampling_strategy == "STRATIFIED_NORMAL":
+        elif self.sampling_strategy == "STRATIFIED_NORMAL":
             normal_dictionary = self._construct_normal_space_buckets(ps)
             ps_samples = []
             # Sample once from each stratum until we have the amount of requested samples

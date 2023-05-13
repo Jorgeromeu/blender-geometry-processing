@@ -15,7 +15,7 @@ class BasicICP(bpy.types.Operator):
     k: bpy.props.FloatProperty(name='k factor', default=2.5, min=1)  # Default is 2.5 based on Masuda, 1996
     normal_dissimilarity_threshold: bpy.props.FloatProperty(name='normal dissimilarity threshold', default=0.5,
                                                             min=0.0001)
-    nu: bpy.props.FloatProperty(name='nu', default=0.1, min=0.0001)  # nu parameter for Welsch function weighting
+    nu: bpy.props.FloatProperty(name='nu', default=1, min=0.01)  # nu parameter for Welsch function weighting
 
     # Point selection method
     sampling_method: bpy.props.EnumProperty(name='Point Sampling', items=[
