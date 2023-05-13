@@ -5,8 +5,9 @@ from kd_tree import KDTree
 from numpy.linalg import solve, svd, det
 
 
-def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=2.5, point_to_plane=False,
-        sampling_strategy="RANDOM_POINT", distance_strategy="EUCLIDEAN") -> (bool, int):
+def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=2.5, normal_dissimilarity_thres=0.5,
+        point_to_plane=False, sampling_strategy="RANDOM_POINT", distance_strategy="EUCLIDEAN",
+        rejection_criterion="K_MEDIAN") -> (bool, int):
     """
     Perform iterative closest point on two objects
     :param obj_P: First object, to be transformed to second one
@@ -42,16 +43,26 @@ def icp(obj_P, obj_Q, max_iterations=100, eps=0.001, sample_rate=0.5, k=2.5, poi
 
         # for each sampled point, get the closest point in q and its distance
         point_pairs = []
-        for p in ps_samples:
+        for p, p_normal in ps_samples:
             (q, nq), dist = qs_kdtree.get_nearest_neighbor((p, None))
-            point_pairs.append((p, q, nq, dist))
+            point_pairs.append((p, q, nq, p_normal, dist))
+        if rejection_criterion == "K_MEDIAN":
+            # compute median distance, for filtering outliers
+            sorted_point_pairs = sorted(point_pairs, key=lambda t: t[4])
+            median_distance = sorted_point_pairs[n_samples // 2][4]
 
-        # compute median distance, for filtering outliers
-        sorted_point_pairs = sorted(point_pairs, key=lambda t: t[3])
-        median_distance = sorted_point_pairs[n_samples // 2][3]
-
-        # filter outlier point-pairs that don't satisfy the k*median condition
-        point_pairs = [(p, q, nq) for (p, q, nq, dist) in point_pairs if dist <= k * median_distance]
+            # filter outlier point-pairs that don't satisfy the k*median condition
+            point_pairs = [(p, q, nq, p_normal) for (p, q, nq, p_normal, dist) in point_pairs if
+                           dist <= k * median_distance]
+        elif rejection_criterion == "DISSIMILAR_NORMALS":
+            point_pairs = [(p, q, nq, p_normal) for (p, q, nq, p_normal, dist) in point_pairs if (1-nq.dot(p_normal)) <= normal_dissimilarity_thres]
+            # for _, _, nq, p_normal in point_pairs:
+            #     print(nq.dot(p_normal))
+            # print(point_pairs[0])
+            # print(type(point_pairs[0][2]), type(point_pairs[0][3]))
+            # raise RuntimeError("Todo")
+        else:
+            raise RuntimeError("Invalid point-pair rejection criterion")
 
         # compute optimal rigid transformation.
         if point_to_plane:
@@ -94,7 +105,7 @@ def opt_rigid_transformation_point_to_point(point_pairs: list[(Vector, Vector)])
 
     # compute covariance matrix
     covariance_matrix = np.zeros((3, 3))
-    for pi, qi, _ in point_pairs:
+    for pi, qi, _, _ in point_pairs:
         covariance_matrix += np.outer(np.array(pi) - centroid_p, np.array(qi) - centroid_q)
     covariance_matrix /= len(point_pairs)
 
@@ -113,32 +124,33 @@ def opt_rigid_transformation_point_to_point(point_pairs: list[(Vector, Vector)])
 
 
 def sample_points(obj, sample_rate=0.5, sampling_strategy="RANDOM_POINT"):
+    """
+    Returns a list of tuples: List[(point,normal)]
+    """
+    # Get world space vertices and the normals of object P
+    ps = [(obj.matrix_world @ p.co, p.normal.copy()) for p in obj.data.vertices]
+    n_samples = int(sample_rate * len(ps))
     if sampling_strategy == "RANDOM_POINT":
-        # Get world space vertices of object P
-        ps = [obj.matrix_world @ p.co for p in obj.data.vertices]
-        # sample n random points in mesh P
+        # Sample n random points in mesh P
         n_samples = int(sample_rate * len(ps))
         ps_samples = random.sample(ps, n_samples)
         return ps_samples
     elif sampling_strategy == "NORMAL":
-        # Get world space vertices and the normals of object P
-        ps_normals = [(obj.matrix_world @ p.co, p.normal.copy()) for p in obj.data.vertices]
-        normal_dictionary = _construct_normal_space_buckets(ps_normals)
-        n_samples = int(sample_rate * len(ps_normals))
+        # Create the normal "buckets" and sample from them
+        normal_dictionary = _construct_normal_space_buckets(ps)
         normal_samples = random.sample(normal_dictionary.keys(), n_samples)
-        ps_samples = [random.choice(normal_dictionary[sample]) for sample in normal_samples]
+        ps_samples = [(random.choice(normal_dictionary[sample]), sample) for sample in normal_samples]
         return ps_samples
     elif sampling_strategy == "STRATIFIED_NORMAL":
-        ps_normals = [(obj.matrix_world @ p.co, p.normal.copy()) for p in obj.data.vertices]
-        normal_dictionary = _construct_normal_space_buckets(ps_normals)
-        n_samples = int(sample_rate * len(ps_normals))
+        normal_dictionary = _construct_normal_space_buckets(ps)
         ps_samples = []
+        # Sample once from each stratum until we have the amount of requested samples
         while len(ps_samples) < n_samples:
             for stratum in normal_dictionary.keys():
-                ps_samples.append(random.choice(normal_dictionary[stratum]))
+                ps_samples.append((random.choice(normal_dictionary[stratum]), stratum))
         return ps_samples
     else:
-        raise RuntimeError("Invalid ICP sampling strategy")
+        raise RuntimeError("Invalid point sampling strategy")
 
 
 def _construct_normal_space_buckets(ps_normals) -> dict:
@@ -160,7 +172,7 @@ def opt_rigid_transformation_point_to_plane(point_pairs: list[(Vector, Vector, V
     A = np.zeros((6, 6))
     b = np.zeros((6,))
 
-    for p, q, nq in point_pairs:
+    for p, q, nq, _ in point_pairs:
         # convert vectors to numpy arrays.
         p = np.array(p)
         q = np.array(q)
