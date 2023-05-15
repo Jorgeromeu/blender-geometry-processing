@@ -42,12 +42,11 @@ class ICP:
         self.evaluation_metric = evaluation_metric
         self.errors = []
 
-
-    def icp(self, obj_P, obj_Q) -> (bool, int):
+    def icp(self, obj_P_moving, obj_Q_fixed) -> (bool, int):
         """
         Perform iterative closest point on two objects
-        :param obj_P: First object, to be transformed to second one
-        :param obj_Q: Second object
+        :param obj_P_moving: First object, to be transformed to second one
+        :param obj_Q_fixed: Second object
         :return: if algorithm converged, and in how many iterations
         """
 
@@ -60,8 +59,8 @@ class ICP:
         num_iterations_so_far = 0
 
         # kd-tree of worldspace verts and normals of object Q, for optimizing nearest neighbor queries
-        q_world = obj_Q.matrix_world
-        qs = [(q_world @ q.co, q_world @ q.normal) for q in obj_Q.data.vertices]
+        q_world = obj_Q_fixed.matrix_world
+        qs = [(q_world @ q.co, q_world @ q.normal) for q in obj_Q_fixed.data.vertices]
 
         distance_lambda = lambda p1, p2: (p1[0] - p2[0]).length
         if self.distance_strategy == "NORMAL_WEIGHTED":
@@ -79,7 +78,7 @@ class ICP:
         for _ in range(self.max_iterations):
             num_iterations_so_far += 1
 
-            ps_samples = self.sample_points(obj_P)
+            ps_samples = self.sample_points(obj_P_moving)
             n_samples = len(ps_samples)
 
             # for each sampled point, get the closest point in q and its distance
@@ -124,11 +123,11 @@ class ICP:
             prev_t = t_opt
 
             # transform object optimal transformation
-            rigid_transform(t_opt, r_opt, obj_P)
+            rigid_transform(t_opt, r_opt, obj_P_moving)
 
             # record error after iteration
             if self.evaluation_object is not None:
-                err = self.evaluation_metric(obj_P, self.evaluation_object)
+                err = self.evaluation_metric(obj_P_moving, self.evaluation_object)
                 t_iter = time.perf_counter()
                 self.errors.append((err, t_iter - t_start))
 

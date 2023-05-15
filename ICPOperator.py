@@ -1,9 +1,11 @@
 import cProfile
 import pstats
 
+import bpy.props
+
 from icputil import *
 
-class BasicICP(bpy.types.Operator):
+class ICPOperator(bpy.types.Operator):
     """Iterative Closest Point"""
     bl_idname = "object.icp"
     bl_label = "Iterative Closest Point (ICP)"
@@ -98,7 +100,6 @@ class BasicICP(bpy.types.Operator):
         box = col.box()
         box.label(text='Point-pair rejection:')
 
-        box = col.box()
         box.prop(self, "rejection_criterion")
         if self.rejection_criterion == 'K_MEDIAN':
             box.prop(self, "k")
@@ -121,6 +122,10 @@ class BasicICP(bpy.types.Operator):
             self.report({'ERROR'}, "Select 2 objects for ICP")
             return {'CANCELLED'}
 
+        # first selected is moving, second selected is fixed
+        fixed = bpy.context.active_object
+        moving = objs[1] if fixed == objs[0] else objs[0]
+
         icp_solver = ICP(max_iterations=self.max_iterations, eps=self.epsilon, max_points=self.max_points,
                          k=self.k, nu=self.nu, sampling_strategy=self.sampling_method,
                          normal_dissimilarity_thres=self.normal_dissimilarity_threshold,
@@ -130,7 +135,7 @@ class BasicICP(bpy.types.Operator):
         try:
 
             with cProfile.Profile() as pr:
-                converged, iters_required = icp_solver.icp(objs[0], objs[1])
+                converged, iters_required = icp_solver.icp(moving, fixed)
 
             stats = pstats.Stats(pr)
             stats.sort_stats(pstats.SortKey.TIME)
