@@ -15,6 +15,7 @@ class EvaluationOperator(bpy.types.Operator):
 
     def execute(self, context):
 
+        # setup timer
         t = Timer()
         t.logging_enabled = True
 
@@ -94,7 +95,7 @@ class EvaluationOperator(bpy.types.Operator):
             target = get_first_by_regex(experiment_coll.all_objects, 'target')
             camera = get_first_by_regex(experiment_coll.all_objects, 'cam')
 
-            # if rendering, setup eevie
+            # if rendering, setup eevee
             scene = bpy.context.scene
             if camera:
                 # hide target

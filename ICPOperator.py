@@ -75,7 +75,11 @@ class ICPOperator(bpy.types.Operator):
                                                    ("WELSCH", "Welsch's function",
                                                     'Point pairs are weighted using the Welsch function (Zhang, 2022)')
                                                ])
+
     nu: bpy.props.FloatProperty(name='nu', default=1, min=0.01)
+
+    animate: bpy.props.BoolProperty('Animate', default=False, description='output animation as set of frames')
+    animation_dir: bpy.props.StringProperty('Animation dir', default='animation', description='relative path to animation directory')
 
     def draw(self, context):
         layout: bpy.types.UILayout = self.layout.grid_flow()
@@ -115,6 +119,11 @@ class ICPOperator(bpy.types.Operator):
             if self.weighting_strategy == 'WELSCH':
                 box.prop(self, "nu")
 
+        box = col.box()
+        box.label(text='Animation')
+        box.prop(self, "animate")
+        box.prop(self, "animation_dir")
+
     def execute(self, context):
         objs = bpy.context.selected_objects
 
@@ -128,10 +137,13 @@ class ICPOperator(bpy.types.Operator):
 
         icp_solver = ICP(max_iterations=self.max_iterations, eps=self.epsilon, max_points=self.max_points,
                          k=self.k, nu=self.nu, sampling_strategy=self.sampling_method,
-                         normal_dissimilarity_thres=self.normal_dissimilarity_threshold,
+                         normal_dissimilarity_thresh=self.normal_dissimilarity_threshold,
                          point_to_plane=self.minimization_function == 'POINT_TO_PLANE',
                          rejection_criterion=self.rejection_criterion,
-                         weighting_strategy=self.weighting_strategy)
+                         weighting_strategy=self.weighting_strategy,
+                         animate=self.animate,
+                         frames_folder=self.animation_dir)
+
         try:
 
             with cProfile.Profile() as pr:

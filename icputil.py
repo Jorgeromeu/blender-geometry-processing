@@ -1,3 +1,4 @@
+import pathlib
 import random
 import time
 
@@ -18,10 +19,10 @@ def rmse(ob1, ob2) -> float:
 
 class ICP:
 
-    def __init__(self, max_iterations=100, eps=0.001, max_points=1000, k=2.5, nu=0.1, normal_dissimilarity_thres=0.5,
+    def __init__(self, max_iterations=100, eps=0.001, max_points=1000, k=2.5, nu=0.1, normal_dissimilarity_thresh=0.5,
                  point_to_plane=False, sampling_strategy="RANDOM_POINT", distance_strategy="EUCLIDEAN",
                  rejection_criterion="K_MEDIAN", weighting_strategy="NONE", evaluation_object=None,
-                 evaluation_metric=rmse):
+                 evaluation_metric=rmse, animate=False, frames_folder=None):
 
         self.max_iterations = max_iterations
         self.eps = eps
@@ -29,7 +30,7 @@ class ICP:
         self.k = k
         self.nu = None
         self.min_nu = nu
-        self.normal_dissimilarity_thres = normal_dissimilarity_thres
+        self.normal_dissimilarity_thresh = normal_dissimilarity_thresh
         self.point_to_plane = point_to_plane
         self.sampling_strategy = sampling_strategy
         self.distance_strategy = distance_strategy
@@ -42,6 +43,27 @@ class ICP:
         self.evaluation_metric = evaluation_metric
         self.errors = []
 
+        # use for animation at each iter
+        self.animate = animate
+        self.frames_folder = pathlib.Path(frames_folder)
+
+    def init_camera(self):
+        # setup camera
+        scene = bpy.context.scene
+        scene.render.engine = 'BLENDER_EEVEE'
+        scene.render.resolution_x = 1920
+        scene.render.resolution_x = 1920
+
+        # clear existing animation
+        for file in self.frames_folder.iterdir():
+            if file.is_file():
+                file.unlink()
+
+    def render_current(self, iter_num):
+        # render state before ICP
+        bpy.context.scene.render.filepath = str(self.frames_folder / f'frame_{iter_num}.png')
+        bpy.ops.render.render(write_still=True)
+
     def icp(self, obj_P_moving, obj_Q_fixed) -> (bool, int):
         """
         Perform iterative closest point on two objects
@@ -53,6 +75,10 @@ class ICP:
         # keep track of errors at each iteration, and time
         self.errors = []
         t_start = time.perf_counter()
+
+        # initialize camera
+        if self.animate:
+            self.init_camera()
 
         # keep track of convergence
         converged = False
@@ -74,17 +100,24 @@ class ICP:
         prev_R = np.eye(3)
         prev_t = np.zeros((3,))
 
+        num_iterations_so_far = 0
+
         # Main ICP iteration loop
         for _ in range(self.max_iterations):
 
-            # record error after iteration
+            # record error at iteration
             if self.evaluation_object is not None:
                 err = self.evaluation_metric(obj_P_moving, self.evaluation_object)
                 t_iter = time.perf_counter()
                 self.errors.append((err, t_iter - t_start))
 
+            # render progress at iteration
+            if self.animate:
+                self.render_current(iter_num=num_iterations_so_far)
+
             num_iterations_so_far += 1
 
+            # sample verts in P
             ps_samples = self.sample_points(obj_P_moving)
             n_samples = len(ps_samples)
 
@@ -110,7 +143,7 @@ class ICP:
                                dist <= self.k * median_distance]
             elif self.rejection_criterion == "DISSIMILAR_NORMALS":
                 point_pairs = [(p, q, nq, p_normal, dist) for (p, q, nq, p_normal, dist) in point_pairs if
-                               (1 - nq.dot(p_normal)) <= self.normal_dissimilarity_thres]
+                               (1 - nq.dot(p_normal)) <= self.normal_dissimilarity_thresh]
 
             # compute optimal rigid transformation.
             if self.point_to_plane:
@@ -131,7 +164,6 @@ class ICP:
 
             # transform object optimal transformation
             rigid_transform(t_opt, r_opt, obj_P_moving)
-
 
         return converged, num_iterations_so_far
 
@@ -279,3 +311,4 @@ class ICP:
                 normal_dictionary[key] = []
             normal_dictionary[key].append(point)
         return normal_dictionary
+
