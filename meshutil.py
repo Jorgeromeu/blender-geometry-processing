@@ -22,7 +22,7 @@ def is_boundary_edge(e: BMEdge) -> bool:
     # edge is a boundary loop when it only has one adjacent face
     return len(e.link_faces) == 1
 
-def compute_genus(bm: BMesh, n_boundaries: int) -> int:
+def compute_genus(bm: BMesh, n_boundaries: int) -> float:
     n_verts = len(list(bm.verts))
     n_edges = len(list(bm.edges))
     n_faces = len(list(bm.faces))

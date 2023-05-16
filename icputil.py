@@ -76,6 +76,13 @@ class ICP:
 
         # Main ICP iteration loop
         for _ in range(self.max_iterations):
+
+            # record error after iteration
+            if self.evaluation_object is not None:
+                err = self.evaluation_metric(obj_P_moving, self.evaluation_object)
+                t_iter = time.perf_counter()
+                self.errors.append((err, t_iter - t_start))
+
             num_iterations_so_far += 1
 
             ps_samples = self.sample_points(obj_P_moving)
@@ -125,11 +132,6 @@ class ICP:
             # transform object optimal transformation
             rigid_transform(t_opt, r_opt, obj_P_moving)
 
-            # record error after iteration
-            if self.evaluation_object is not None:
-                err = self.evaluation_metric(obj_P_moving, self.evaluation_object)
-                t_iter = time.perf_counter()
-                self.errors.append((err, t_iter - t_start))
 
         return converged, num_iterations_so_far
 
