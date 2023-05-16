@@ -1,5 +1,3 @@
-import pathlib
-
 import matplotlib.pyplot as plt
 
 plt.switch_backend('TkAgg')
@@ -8,18 +6,22 @@ from icputil import *
 from bpyutil import *
 from timer import Timer
 
+def to_filename(s: str) -> str:
+    return s.lower().replace(' ', '-')
+
 class EvaluationOperator(bpy.types.Operator):
     bl_idname = "object.evaluation"
     bl_label = "Evaluation"
     bl_options = {'REGISTER', 'UNDO'}
+
+    # all experiments should be placed as subcollections of this collection
+    eval_collection_name = 'Evaluation'
 
     def execute(self, context):
 
         # setup timer
         t = Timer()
         t.logging_enabled = True
-
-        eval_collection_name = 'Evaluation'
 
         max_iters = 20
         eps = 0.001
@@ -30,12 +32,13 @@ class EvaluationOperator(bpy.types.Operator):
             "collection": "Suzanne",
             "solvers": [{'name': f'$k$={k}',
                          'marker': '.',
-                         'filename': f'{k}.png',
                          'solver': ICP(max_iterations=max_iters,
                                        eps=eps, max_points=max_points,
                                        k=k)}
                         for k in [1, 1.5, 2, 3, 10, 11]],
-            "folder": 'evaluation/suzanne'
+            "folder": 'evaluation/suzanne',
+            "render_initial_state": True,
+            "render_final_states": False,
         }
 
         gdp_planes = {
@@ -43,12 +46,13 @@ class EvaluationOperator(bpy.types.Operator):
             "collection": "GDP",
             "solvers": [{'name': f'{ss}',
                          'marker': '.',
-                         'filename': f'{ss}.png',
                          'solver': ICP(max_iterations=20, eps=eps, max_points=max_points, k=2.5,
                                        point_to_plane=True,
                                        sampling_strategy=ss)}
                         for ss in ['RANDOM_POINT', 'NORMAL']],
-            'folder': 'evaluation/gdp-planes'
+            'folder': 'evaluation/gdp-planes',
+            "render_initial_state": True,
+            "render_final_states": True,
         }
 
         cubes = {
@@ -56,11 +60,12 @@ class EvaluationOperator(bpy.types.Operator):
             "collection": "cubes",
             "solvers": [{'name': f'{"Point to Plane" if is_point_to_plane else "Point to Point"}',
                          'marker': '.',
-                         'filename': f'{"point-to-plane" if is_point_to_plane else "point-to-point"}.png',
                          'solver': ICP(max_iterations=max_iters, eps=eps, max_points=max_points, k=2.5,
                                        point_to_plane=is_point_to_plane)}
                         for is_point_to_plane in [True, False]],
-            'folder': 'evaluation/cubes'
+            'folder': 'evaluation/cubes',
+            "render_initial_state": True,
+            "render_final_states": True,
         }
 
         bunnies = {
@@ -68,11 +73,12 @@ class EvaluationOperator(bpy.types.Operator):
             "collection": "bunnies",
             "solvers": [{'name': f'{"Point to Plane" if is_point_to_plane else "Point to Point"}',
                          'marker': '.',
-                         'filename': f'{"point-to-plane" if is_point_to_plane else "point-to-point"}.png',
                          'solver': ICP(max_iterations=max_iters, eps=eps, max_points=max_points, k=2.5,
                                        point_to_plane=is_point_to_plane)}
                         for is_point_to_plane in [True, False]],
             'folder': 'evaluation/bunnies/',
+            "render_initial_state": True,
+            "render_final_states": True,
         }
 
         experiments = [
@@ -81,12 +87,13 @@ class EvaluationOperator(bpy.types.Operator):
 
         for experiment in experiments:
 
+            # create folder for experiment output
             experiment_folder = pathlib.Path(experiment['folder'])
             if not experiment_folder.exists():
                 experiment_folder.mkdir()
 
             # get experiment collection
-            evaluation_coll = bpy.data.collections[eval_collection_name]
+            evaluation_coll = bpy.data.collections[self.eval_collection_name]
             experiment_coll = evaluation_coll.children[experiment["collection"]]
 
             # get objects for particular experiment
@@ -113,11 +120,14 @@ class EvaluationOperator(bpy.types.Operator):
                 evaluation_coll.hide_render = False
                 experiment_coll.hide_render = False
 
-                # render state before ICP
+            # render state before ICP
+            if camera and experiment['render_initial_state']:
                 scene.render.filepath = str(experiment_folder / 'original.png')
                 bpy.ops.render.render(write_still=True)
 
+            # save original transform of moving object
             original_transform = moving.matrix_world.copy()
+
             for entry in experiment["solvers"]:
 
                 # call the ICP solver, with error tracing
@@ -130,20 +140,20 @@ class EvaluationOperator(bpy.types.Operator):
                 # plot errors
                 errors = [err for (err, t) in solver.errors]
                 times = [t for (err, t) in solver.errors]
+
                 plt.plot(times, errors, label=entry['name'],
                          marker=get_or_else(entry, 'marker', ''))
 
                 # render result after running ICP
-                if camera and entry.get('filename'):
-                    render_path = str(experiment_folder / entry['filename'])
-                    if render_path:
-                        scene.render.filepath = render_path
-                        bpy.ops.render.render(write_still=True)
+                if camera and experiment['render_final_states']:
+                    render_path = str(experiment_folder / to_filename(entry['name']))
+                    scene.render.filepath = render_path
+                    bpy.ops.render.render(write_still=True)
 
                 # reset transform of object
                 moving.matrix_world = original_transform
 
-            # plot
+            # style convergence plot
             plt.legend()
             plt.title(experiment["title"])
             plt.xlabel('time (seconds)')

@@ -45,7 +45,8 @@ class ICP:
 
         # use for animation at each iter
         self.animate = animate
-        self.frames_folder = pathlib.Path(frames_folder)
+        if frames_folder:
+            self.frames_folder = pathlib.Path(frames_folder)
 
     def init_camera(self):
         # setup camera
