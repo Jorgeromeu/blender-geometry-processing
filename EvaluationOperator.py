@@ -1,6 +1,3 @@
-import matplotlib.pyplot as plt
-
-plt.switch_backend('TkAgg')
 
 from icputil import *
 from bpyutil import *
@@ -17,7 +14,16 @@ class EvaluationOperator(bpy.types.Operator):
     # all experiments should be placed as subcollections of this collection
     eval_collection_name = 'Evaluation'
 
+    initialized = False
+
     def execute(self, context):
+        if not self.initialized:
+            try:
+                import matplotlib.pyplot as plt
+                plt.switch_backend('TkAgg')
+            except ModuleNotFoundError:
+                self.report({'ERROR'}, "Cannot run evaluations: Blender could not find matplotlib")
+                return {"FINISHED"}
 
         # setup timer
         t = Timer()
