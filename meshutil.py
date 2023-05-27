@@ -1,4 +1,5 @@
-from bmesh.types import BMVert, BMEdge, BMesh
+from bmesh.types import BMVert, BMEdge
+from mathutils import Vector
 
 from .bpyutil import *
 
@@ -17,6 +18,13 @@ def neighbors(v: BMVert, only_boundaries=False) -> list[BMVert]:
         neighbors.append(neighbor)
 
     return neighbors
+
+def centroid(ps: list[Vector]):
+    p_sum = Vector((0, 0, 0))
+    for p in ps:
+        p_sum += p
+
+    return p_sum / len(ps)
 
 def is_boundary_edge(e: BMEdge) -> bool:
     # edge is a boundary loop when it only has one adjacent face
@@ -113,3 +121,20 @@ def compute_connected_components(bm: BMesh) -> int:
                     unvisited.remove(neighbor)
 
     return n_components
+
+def compute_laplace_coords(bm: BMesh) -> dict[int, Vector]:
+    # precompute laplace coordinates of mesh
+    laplace_coords = {}
+
+    for v in bm.verts:
+        v: BMVert
+        v_neighbors = [n.co for n in neighbors(v)]
+
+        laplace_coord = Vector()
+        for n in v_neighbors:
+            laplace_coord += v.co - n
+        laplace_coord /= len(v_neighbors)
+
+        laplace_coords[v.index] = laplace_coord
+
+    return laplace_coords
