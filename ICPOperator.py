@@ -3,7 +3,7 @@ import pstats
 
 import bpy.props
 
-from icputil import *
+from .icputil import *
 
 class ICPOperator(bpy.types.Operator):
     """Iterative Closest Point"""
