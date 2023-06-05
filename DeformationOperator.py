@@ -1,59 +1,55 @@
+import cProfile
+import pstats
+
 import bmesh
 import bpy.props
+import mathutils
 
 from .meshutil import *
 
 def to_vs(mesh: BMesh, dims: list[int]) -> list[np.ndarray]:
-    vs = [[], [], []]
+    """
+    Convert a BMesh into vx, vy, vz representation
+    :param mesh: the mesh
+    :param dims: the set of dimensions to convert, e.g [0, 1, 2] for full representation
+    """
+
+    vs = [[] for _ in dims]
 
     for v in mesh.verts:
-        for d in dims:
-            vs[d].append(v.co[d])
+        for d_i, _ in enumerate(dims):
+            vs[d_i].append(v.co[d_i])
 
-    for d in dims:
-        vs[d] = np.array(vs[d])
+    for i, _ in enumerate(vs):
+        vs[i] = np.array(vs[i])
 
     return vs
 
-def set_vs(bm: BMesh, vs) -> BMesh:
+def set_vs(bm: BMesh, vs: list[np.ndarray], dims: list[int]) -> BMesh:
     """
     Set the mesh to the provided vx, vy, vz
     """
 
-    for i, v in enumerate(bm.verts):
-        v.co.x = vs[0][i]
-        v.co.y = vs[1][i]
-        v.co.z = vs[2][i]
+    for v_i, v in enumerate(bm.verts):
 
-def optimal_v(og_delta: np.ndarray, laplacian: np.ndarray, a: float,
+        # set each dimension of v
+        for d_i, dim in enumerate(dims):
+            v.co[dim] = vs[d_i][v_i]
+
+def optimal_v(og_delta: np.ndarray, laplacian, a: float,
               constraint_matrix: np.ndarray, constraint_rhs: np.ndarray) -> np.ndarray:
     """
     Compute transformation that minimizes weighted sum of Laplacian energy and constraint energy
     """
+
     matrix = laplacian.transpose() @ laplacian + a * constraint_matrix.transpose() @ constraint_matrix
 
     rhs = laplacian.transpose() @ og_delta.reshape(
         (len(og_delta), 1)) + a * constraint_matrix.transpose() @ constraint_rhs
 
-    return np.linalg.solve(matrix, rhs.flatten())
-
-def mesh_laplacian(mesh: BMesh) -> np.ndarray:
-    n = len(mesh.verts)
-
-    D = np.zeros((n, n))
-    A = np.zeros((n, n))
-
-    for i, v_i in enumerate(mesh.verts):
-        for j, v_j in enumerate(mesh.verts):
-
-            if i == j:
-                D[i, i] = len(neighbors(v_i))
-
-            if v_j in neighbors(v_i):
-                A[i, j] = 1
-
-    L = np.eye(n) - np.linalg.inv(D) @ A
-    return L
+    opt_v = sp.linalg.spsolve(matrix, rhs)
+    # opt_v = np.linalg.solve(matrix, rhs.flatten())
+    return opt_v
 
 class DeformationOp(bpy.types.Operator):
     bl_idname = "object.implicitdeform"
@@ -68,12 +64,6 @@ class DeformationOp(bpy.types.Operator):
     affect_x: bpy.props.BoolProperty(name='X', default=True)
     affect_y: bpy.props.BoolProperty(name='Y', default=True)
     affect_z: bpy.props.BoolProperty(name='Z', default=True)
-
-    # TODO make property, hook up to UI
-    handles = [
-        (431, 'Empty'),
-        (432, 'Empty.001'),
-    ]
 
     def _dims(self) -> list[int]:
 
@@ -91,60 +81,116 @@ class DeformationOp(bpy.types.Operator):
 
         return res
 
-    def compute_constraints_system(self, dim, og_vs):
+    def construct_constraint_system(self, dim_idx, og_vs) -> (np.ndarray, np.ndarray):
 
         num_verts = len(og_vs)
 
         # create a constraint for each handle
-        constraint_matrix = np.zeros((len(self.handles), num_verts))
-        constraint_rhs = np.zeros((len(self.handles), 1))
+        constraint_matrix = sp.lil_array((len(self.handles), num_verts))
+        constraint_rhs = sp.lil_array((len(self.handles), 1))
 
         for i, (vertex_index, desired_pos_object) in enumerate(self.handles):
             desired_pos = get_first_by_regex(desired_pos_object).location
 
             constraint_matrix[i, vertex_index] = 1
-            constraint_rhs[i] = desired_pos[dim]
+            constraint_rhs[i] = desired_pos[self._dims()[dim_idx]]
 
         # add a constraint to preserve centroid
         if self.preserve_centroid:
             constraint_matrix_centroid = np.ones((1, num_verts)) / num_verts
             constraint_rhs_centroid = np.array([np.average(og_vs)]).reshape(1, 1)
 
-            constraint_matrix = np.concatenate((constraint_matrix, constraint_matrix_centroid), axis=0)
-            constraint_rhs = np.concatenate((constraint_rhs, constraint_rhs_centroid), axis=0)
+            constraint_matrix = sp.vstack([constraint_matrix, constraint_matrix_centroid])
+            constraint_rhs = sp.vstack([constraint_rhs, constraint_rhs_centroid])
 
-        return constraint_matrix, constraint_rhs
+        return constraint_matrix.tocsc(), constraint_rhs
+
+    def deform_mesh(self, mesh: BMesh):
+
+        # Compute laplacian of mesh
+        laplacian = mesh_laplacian(mesh)
+
+        # get original vertex positions and laplacian coordinates of the mesh
+        og_vs = to_vs(mesh, self._dims())
+        og_deltas = [laplacian @ vd.reshape((len(vd), 1)) for vd in og_vs]
+
+        # for each dimension, minimize weighted sum of constraint energy and deformation energy
+        opt_vs = og_vs
+        for d_i, d in enumerate(self._dims()):
+            constraint_matrix, constraint_rhs = self.construct_constraint_system(d_i, og_vs[d_i])
+            opt_vd = optimal_v(og_deltas[d_i], laplacian, self.constraint_weight, constraint_matrix, constraint_rhs)
+            opt_vs[d_i] = opt_vd
+
+        # set vertices to updated vertex positions
+        set_vs(mesh, opt_vs, self._dims())
 
     def execute(self, context):
 
-        if not bpy.context.selected_objects:
-            self.report({'ERROR'}, "Select an object to deform")
+        # ensure single object is selected
+        if len(bpy.context.selected_objects) != 1:
+            self.report({'ERROR'}, "Select a single object to deform")
             return {'CANCELLED'}
-
-        # object to be deformed
         obj = bpy.context.selected_objects[0]
+
+        # read handles
+        self.handles = []
+        vertex_groups = obj.vertex_groups
+        for group in vertex_groups:
+            vs = [v.index for v in obj.data.vertices if group.index in [vg.group for vg in v.groups]]
+            self.handles.append((vs[0], group.name))
 
         # get editable mesh
         bpy.ops.object.mode_set(mode='EDIT')
         mesh = bmesh.from_edit_mesh(obj.data)
 
-        # Compute laplacian of mesh
-        laplacian = mesh_laplacian(mesh)
+        with cProfile.Profile() as pr:
+            self.deform_mesh(mesh)
 
-        # get original vertex positions and laplacian coordinates
-        og_vs = to_vs(mesh, self._dims())
-        og_deltas = [laplacian @ vd.reshape((len(vd), 1)) for vd in og_vs]
-
-        # compute optimal vertex positions for each dimension
-        opt_vs = og_vs
-
-        # for each dimension, minimize weighted sum of constraint energy and deformation energy
-        for d in self._dims():
-            constraint_matrix, constraint_rhs = self.compute_constraints_system(d, og_vs[d])
-            opt_vd = optimal_v(og_deltas[d], laplacian, self.constraint_weight, constraint_matrix, constraint_rhs)
-            opt_vs[d] = opt_vd
-
-        # set vertices to updated vertex positions
-        set_vs(mesh, opt_vs)
+        stats = pstats.Stats(pr)
+        stats.sort_stats(pstats.SortKey.TIME)
+        stats.dump_stats(filename='profile.prof')
 
         return {'FINISHED'}
+
+class TranslateVertexOperator(bpy.types.Operator):
+    bl_idname = "object.translate_vertex"
+    bl_label = "Translate Vertex"
+
+    start_mouse_pos = None
+    start_vertex_pos = None
+    selected_vert = None
+
+    def modal(self, context, event):
+        print('A')
+        if event.type == 'MOUSEMOVE':
+            mouse_pos = mathutils.Vector((event.mouse_region_x, event.mouse_region_y))
+
+            if self.start_mouse_pos:
+                translation = mouse_pos - self.start_mouse_pos
+                self.selected_vert.co = self.start_vertex_pos + translation
+            return {'RUNNING_MODAL'}
+
+        elif event.type == 'LEFTMOUSE':
+            return {'FINISHED'}
+
+        elif event.type in {'RIGHTMOUSE', 'ESC'}:
+            return {'RUNNING_MODAL'}
+
+    def invoke(self, context, event):
+
+        if bpy.context.active_object is None:
+            self.report({'WARNING'}, 'no active object')
+            return {'CANCELLED'}
+        if bpy.context.active_object.type != 'MESH':
+            self.report({'WARNING'}, 'no mesh selected')
+            return {'CANCELLED'}
+
+        obj = bpy.context.selected_objects[0]
+        mesh = bmesh.from_edit_mesh(obj.data)
+
+        # TODO handle more than one / zero selection
+        self.selected_vert = [v for v in mesh.verts if v.select][0]
+
+        self.start_mouse_pos = mathutils.Vector((event.mouse_region_x, event.mouse_region_y))
+
+        return {'RUNNING_MODAL'}

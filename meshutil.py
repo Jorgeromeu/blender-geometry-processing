@@ -1,3 +1,4 @@
+import scipy.sparse as sp
 from bmesh.types import BMVert, BMEdge
 from mathutils import Vector
 
@@ -138,3 +139,20 @@ def compute_laplace_coords(bm: BMesh) -> dict[int, Vector]:
         laplace_coords[v.index] = laplace_coord
 
     return laplace_coords
+
+def mesh_laplacian(mesh: BMesh) -> np.ndarray:
+    n = len(mesh.verts)
+    D = sp.lil_array((n, n))
+    A = sp.lil_array((n, n))
+
+    for i, v_i in enumerate(mesh.verts):
+
+        vi_neighbors = neighbors(v_i)
+
+        D[i, i] = len(vi_neighbors)
+
+        for neighbor in vi_neighbors:
+            A[i, neighbor.index] = 1
+
+    L = sp.eye(n) - sp.linalg.inv(D.tocsc()) @ A
+    return L.tocsc()

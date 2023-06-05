@@ -16,7 +16,8 @@ bl_info = {
     "category": "Generic"
 }
 
-classes = [ComputeGenus, ConnectedComponentsOp, VolumeOperator, BoundaryLoopsOp, ICPOperator, DeformationOp]
+classes = [ComputeGenus, ConnectedComponentsOp, VolumeOperator, BoundaryLoopsOp, ICPOperator, DeformationOp,
+           TranslateVertexOperator]
 
 def register():
     print('gdp-addon registered')
@@ -29,7 +30,7 @@ def register():
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(BoundaryLoopsOp.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(ICPOperator.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(DeformationOp.bl_idname))
-    # bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(EvaluationOperator.bl_idname))
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(TranslateVertexOperator.bl_idname))
 
     # # register all operators
     # for op in object_ops:
