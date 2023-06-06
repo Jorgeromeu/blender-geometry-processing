@@ -1,8 +1,10 @@
+import numpy as np
 import scipy.sparse as sp
-from bmesh.types import BMVert, BMEdge
+from bmesh.types import BMVert, BMEdge, BMFace
 from mathutils import Vector
 
 from .bpyutil import *
+
 
 def neighbors(v: BMVert, only_boundaries=False) -> list[BMVert]:
     neighbors = []
@@ -20,6 +22,7 @@ def neighbors(v: BMVert, only_boundaries=False) -> list[BMVert]:
 
     return neighbors
 
+
 def centroid(ps: list[Vector]):
     p_sum = Vector((0, 0, 0))
     for p in ps:
@@ -27,9 +30,11 @@ def centroid(ps: list[Vector]):
 
     return p_sum / len(ps)
 
+
 def is_boundary_edge(e: BMEdge) -> bool:
     # edge is a boundary loop when it only has one adjacent face
     return len(e.link_faces) == 1
+
 
 def compute_genus(bm: BMesh, n_boundaries: int) -> float:
     n_verts = len(list(bm.verts))
@@ -37,6 +42,7 @@ def compute_genus(bm: BMesh, n_boundaries: int) -> float:
     n_faces = len(list(bm.faces))
 
     return 1 - (n_verts - n_edges + n_faces + n_boundaries) / 2
+
 
 def compute_boundary_loops(bm: BMesh, select_edges=False) -> int:
     # find all edges that are boundaries
@@ -84,6 +90,7 @@ def compute_boundary_loops(bm: BMesh, select_edges=False) -> int:
 
     return n_loops
 
+
 def compute_mesh_volume(bm: BMesh) -> float:
     total_volume = 0
     for face in bm.faces:
@@ -94,6 +101,7 @@ def compute_mesh_volume(bm: BMesh) -> float:
         total_volume += tetra_volume
 
     return total_volume
+
 
 def compute_connected_components(bm: BMesh) -> int:
     n_components = 0
@@ -123,6 +131,7 @@ def compute_connected_components(bm: BMesh) -> int:
 
     return n_components
 
+
 def compute_laplace_coords(bm: BMesh) -> dict[int, Vector]:
     # precompute laplace coordinates of mesh
     laplace_coords = {}
@@ -140,6 +149,7 @@ def compute_laplace_coords(bm: BMesh) -> dict[int, Vector]:
 
     return laplace_coords
 
+
 def mesh_laplacian(mesh: BMesh) -> np.ndarray:
     n = len(mesh.verts)
     D = sp.lil_array((n, n))
@@ -156,3 +166,37 @@ def mesh_laplacian(mesh: BMesh) -> np.ndarray:
 
     L = sp.eye(n) - sp.linalg.inv(D.tocsc()) @ A
     return L.tocsc()
+
+
+def triangle_area(triangle: BMFace) -> float:
+    """Calculates the mass matrix for a single triangle:
+    """
+    v1 = triangle.verts[0].co
+    v2 = triangle.verts[1].co
+    v3 = triangle.verts[2].co
+    AB = v2 - v1
+    AC = v3 - v1
+    cosTheta = AB.dot(AC) / (AB.length * AC.length)
+    sinTheta = np.sqrt(1 - cosTheta ** 2)
+    area = 0.5 * AB.length * AC.length * sinTheta
+    # return np.eye(3) * area
+    return area
+
+
+def mesh_mash(mesh: BMesh) -> np.ndarray:
+    """
+    Returns the mash matrix for a given mesh.
+    M = [ A_{T1} 0 ...        0   ]
+        [   0    A_{T2} ...   0   ]
+                    .
+                    .
+                    .
+        [   0      0   ... A_{Tm} ],
+    with $M \in \mathbb{R}^{3m\times3m}$, where m is the number of triangles.
+    See `triangle_mass` for a definiton of A_{T1}.
+    """
+    mass = np.eye(3 * len(mesh.faces))
+    for face_index, face in enumerate(mesh.faces):
+        ti_area = mass[(face_index * 3):(face_index * 3 + 3)]
+        ti_area[np.where(ti_area == 1)] = triangle_area(face)
+    return mass
