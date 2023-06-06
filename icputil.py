@@ -5,8 +5,8 @@ import time
 from mathutils import Vector
 from numpy.linalg import solve, svd, det
 
-from bpyutil import *
-from kd_tree import KDTree
+from .bpyutil import *
+from .kd_tree import KDTree
 
 def rmse(ob1, ob2) -> float:
     verts_1 = np.array([np.array(ob1.matrix_world @ v.co) for v in ob1.data.vertices])
@@ -42,6 +42,7 @@ class ICP:
         self.evaluation_object = evaluation_object
         self.evaluation_metric = evaluation_metric
         self.errors = []
+        self.num_rejected = []
 
         # use for animation at each iter
         self.animate = animate
@@ -101,10 +102,8 @@ class ICP:
         prev_R = np.eye(3)
         prev_t = np.zeros((3,))
 
-        num_iterations_so_far = 0
-
         # Main ICP iteration loop
-        for _ in range(self.max_iterations):
+        for num_iterations_so_far in range(self.max_iterations):
 
             # record error at iteration
             if self.evaluation_object is not None:
@@ -116,11 +115,12 @@ class ICP:
             if self.animate:
                 self.render_current(iter_num=num_iterations_so_far)
 
-            num_iterations_so_far += 1
-
             # sample verts in P
             ps_samples = self.sample_points(obj_P_moving)
             n_samples = len(ps_samples)
+
+            if num_iterations_so_far == 0:
+                print(f'num points: {n_samples}')
 
             # for each sampled point, get the closest point in q and its distance
             point_pairs = []
@@ -136,15 +136,23 @@ class ICP:
 
             if self.rejection_criterion == "K_MEDIAN":
                 # compute median distance, for filtering outliers
-                sorted_point_pairs = sorted(point_pairs, key=lambda t: t[4])
-                median_distance = sorted_point_pairs[n_samples // 2][4]
+
+                distances = sorted([d for (_, _, _, _, d) in point_pairs])
+                median_distance = distances[n_samples // 2]
 
                 # filter outlier point-pairs that don't satisfy the k*median condition
                 point_pairs = [(p, q, nq, p_normal, dist) for (p, q, nq, p_normal, dist) in point_pairs if
                                dist <= self.k * median_distance]
+
             elif self.rejection_criterion == "DISSIMILAR_NORMALS":
-                point_pairs = [(p, q, nq, p_normal, dist) for (p, q, nq, p_normal, dist) in point_pairs if
-                               (1 - nq.dot(p_normal)) <= self.normal_dissimilarity_thresh]
+                point_pairs = [(p, q, q_normal, p_normal, dist) for (p, q, q_normal, p_normal, dist) in point_pairs if
+                               (q_normal.dot(p_normal)) >= self.normal_dissimilarity_thresh]
+
+            num_points_rejected = n_samples - len(point_pairs)
+            self.num_rejected.append(num_points_rejected)
+            if num_iterations_so_far == 0:
+                print(f'num_points_rejected: {num_points_rejected}')
+                print(f'num points after rejection: {len(point_pairs)}')
 
             # compute optimal rigid transformation.
             if self.point_to_plane:
@@ -166,7 +174,7 @@ class ICP:
             # transform object optimal transformation
             rigid_transform(t_opt, r_opt, obj_P_moving)
 
-        return converged, num_iterations_so_far
+        return converged, num_iterations_so_far + 1
 
     def _centroid(self, ps: list[Vector]):
         p_sum = Vector((0, 0, 0))
@@ -312,4 +320,3 @@ class ICP:
                 normal_dictionary[key] = []
             normal_dictionary[key].append(point)
         return normal_dictionary
-

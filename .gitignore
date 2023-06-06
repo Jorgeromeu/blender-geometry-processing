@@ -163,3 +163,5 @@ cython_debug/
 *.prof
 
 start_blender.py
+evaluation
+animation
