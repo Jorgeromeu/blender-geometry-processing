@@ -1,5 +1,3 @@
-import sys
-
 from .BoundaryLoops import *
 from .ComputeGenus import *
 from .ConnectedComponentsOp import *

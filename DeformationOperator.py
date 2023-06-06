@@ -8,6 +8,7 @@ import scipy.sparse as sp
 
 from .meshutil import *
 
+
 def to_vs(mesh: BMesh, dims: list[int]) -> list[np.ndarray]:
     """
     Convert a BMesh into vx, vy, vz representation
@@ -26,6 +27,7 @@ def to_vs(mesh: BMesh, dims: list[int]) -> list[np.ndarray]:
 
     return vs
 
+
 def set_vs(bm: BMesh, vs: list[np.ndarray], dims: list[int]) -> BMesh:
     """
     Set the mesh to the provided vx, vy, vz
@@ -36,6 +38,7 @@ def set_vs(bm: BMesh, vs: list[np.ndarray], dims: list[int]) -> BMesh:
         # set each dimension of v
         for d_i, dim in enumerate(dims):
             v.co[dim] = vs[d_i][v_i]
+
 
 def optimal_v(og_delta: np.ndarray, laplacian, a: float,
               constraint_matrix: np.ndarray, constraint_rhs: np.ndarray) -> np.ndarray:
@@ -51,6 +54,21 @@ def optimal_v(og_delta: np.ndarray, laplacian, a: float,
     opt_v = sp.linalg.spsolve(matrix, rhs)
     # opt_v = np.linalg.solve(matrix, rhs.flatten())
     return opt_v
+
+
+def triangulate_object(obj):
+    me = obj.data
+    # Get a BMesh representation
+    bm = bmesh.new()
+    bm.from_mesh(me)
+
+    bmesh.ops.triangulate(bm, faces=bm.faces[:])
+    # V2.79 : bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method=0, ngon_method=0)
+
+    # Finish up, write the bmesh back to the mesh
+    bm.to_mesh(me)
+    bm.free()
+
 
 class DeformationOp(bpy.types.Operator):
     bl_idname = "object.implicitdeform"
@@ -107,7 +125,6 @@ class DeformationOp(bpy.types.Operator):
         return constraint_matrix.tocsc(), constraint_rhs
 
     def deform_mesh(self, mesh: BMesh):
-
         # Compute laplacian of mesh
         laplacian = mesh_laplacian(mesh)
 
@@ -115,7 +132,7 @@ class DeformationOp(bpy.types.Operator):
         og_vs = to_vs(mesh, self._dims())
         og_deltas = [laplacian @ vd.reshape((len(vd), 1)) for vd in og_vs]
 
-        # for each dimension, minimize weighted sum of constraint energy and deformation energy
+        # for each dimension, minimize weighted sum of constraint energy and deformation ener   gy
         opt_vs = og_vs
         for d_i, d in enumerate(self._dims()):
             constraint_matrix, constraint_rhs = self.construct_constraint_system(d_i, og_vs[d_i])
@@ -132,7 +149,7 @@ class DeformationOp(bpy.types.Operator):
             self.report({'ERROR'}, "Select a single object to deform")
             return {'CANCELLED'}
         obj = bpy.context.selected_objects[0]
-
+        triangulate_object(obj)
         # read handles
         self.handles = []
         vertex_groups = obj.vertex_groups
@@ -152,6 +169,7 @@ class DeformationOp(bpy.types.Operator):
         stats.dump_stats(filename='profile.prof')
 
         return {'FINISHED'}
+
 
 class TranslateVertexOperator(bpy.types.Operator):
     bl_idname = "object.translate_vertex"
