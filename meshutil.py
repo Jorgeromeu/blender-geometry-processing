@@ -1,9 +1,7 @@
-import numpy as np
 import scipy.sparse as sp
 from bmesh.types import BMesh, BMFace, BMEdge, BMVert
 from mathutils import Vector
-
-from .bpyutil import *
+from bpyutil import *
 
 
 def neighbors(v: BMVert, only_boundaries=False) -> list[BMVert]:
@@ -183,7 +181,7 @@ def triangle_area(triangle: BMFace) -> float:
     return area
 
 
-def mesh_mash(mesh: BMesh) -> np.ndarray:
+def compute_mass_matrix(mesh: BMesh) -> np.ndarray:
     """
     Returns the mash matrix for a given mesh.
     M = [ A_{T1} 0 ...        0   ]
@@ -211,7 +209,10 @@ def opposite_edge(tri: BMFace, v: BMVert) -> BMEdge:
     return [e for e in tri.edges if v.link_edges not in tri.edges][0]
 
 
-def global_gradient_matrix(bm: BMesh) -> np.ndarray:
+def compute_gradient_matrix(bm: BMesh) -> np.ndarray:
+    """
+    Computes gradient matrix of a mesh.
+    """
     n = len(bm.verts)   # no. vertices
     m = len(bm.faces)   # three times no. triangles
 
@@ -235,3 +236,12 @@ def global_gradient_matrix(bm: BMesh) -> np.ndarray:
         global_gradient_matrix[face_idx*3:face_idx*3+3, :] = local_gradient_matrix
 
     return global_gradient_matrix
+
+
+def compute_cotangent_matrix(bm: BMesh):
+    """
+    Computes cotangent matrix of a mesh.
+    """
+    gradient_matrix = compute_gradient_matrix(bm)
+    mass_matrix = compute_mass_matrix(bm)
+    return gradient_matrix.T @ mass_matrix @ gradient_matrix

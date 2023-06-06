@@ -1,6 +1,6 @@
 import bpy
 import bmesh
-from meshutil import global_gradient_matrix
+from meshutil import compute_cotangent_matrix
 
 
 class DifferentialCoordinatesOp(bpy.types.Operator):
@@ -20,6 +20,7 @@ class DifferentialCoordinatesOp(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='EDIT')
         mesh = bmesh.from_edit_mesh(obj.data)
 
-        global_gradient_matrix(mesh)
+        cot_matrix = compute_cotangent_matrix(mesh)
+        print(cot_matrix)
 
         return {'FINISHED'}
