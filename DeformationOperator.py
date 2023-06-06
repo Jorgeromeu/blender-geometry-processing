@@ -5,6 +5,8 @@ import bmesh
 import bpy.props
 import mathutils
 
+import scipy.sparse as sp
+
 from .meshutil import *
 
 def to_vs(mesh: BMesh, dims: list[int]) -> list[np.ndarray]:

@@ -1,3 +1,9 @@
+import subprocess
+import sys
+
+# Install scipy in blender
+subprocess.check_call([sys.executable, "-m", "pip", "install", "scipy"])
+
 from .BoundaryLoops import *
 from .ComputeGenus import *
 from .ConnectedComponentsOp import *
