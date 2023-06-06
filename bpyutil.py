@@ -56,3 +56,26 @@ def get_first_by_regex(r: str, d=None):
         if re.match(r, k):
             return v
     return None
+
+def set_vertex_attrib(obj, name: str, data: np.ndarray):
+    """
+    Set a vertex attribute to provided data
+
+    :param obj: the object
+    :param name: the name of the vertex attribute
+    :param data: the data, indices should line up with vertex indices
+    :return:
+    """
+
+    # if no attribute exists, make it
+    if not obj.data.attributes.get(name):
+        obj.data.attributes.new(name, type='FLOAT', domain='POINT')
+
+    # normalize to range [0, 1]
+    min_val = min(data)
+    if min_val < 0:
+        data -= min_val
+    data /= max(data)
+
+    obj.data.attributes[name].data.foreach_set("value", data)
+
