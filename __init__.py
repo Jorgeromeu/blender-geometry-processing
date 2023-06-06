@@ -1,9 +1,16 @@
+import sys
+
 from .BoundaryLoops import *
 from .ComputeGenus import *
 from .ConnectedComponentsOp import *
 from .DeformationOperator import *
 from .ICPOperator import *
 from .VolumeOperator import *
+from .DifferentialCoordinatesOperator import *
+import subprocess
+import sys
+
+subprocess.check_call([sys.executable, "-m", "pip", "install", "scipy"])
 
 bl_info = {
     "name": "Geometric Data Processing",
@@ -17,7 +24,7 @@ bl_info = {
 }
 
 classes = [ComputeGenus, ConnectedComponentsOp, VolumeOperator, BoundaryLoopsOp, ICPOperator, DeformationOp,
-           TranslateVertexOperator]
+           TranslateVertexOperator, DifferentialCoordinatesOp]
 
 def register():
     print('gdp-addon registered')
@@ -31,6 +38,7 @@ def register():
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(ICPOperator.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(DeformationOp.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(TranslateVertexOperator.bl_idname))
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(DifferentialCoordinatesOp.bl_idname))
 
     # # register all operators
     # for op in object_ops:

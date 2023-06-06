@@ -1,5 +1,5 @@
 import scipy.sparse as sp
-from bmesh.types import BMVert, BMEdge
+from bmesh.types import BMesh, BMFace, BMEdge, BMVert
 from mathutils import Vector
 
 from .bpyutil import *
@@ -156,3 +156,38 @@ def mesh_laplacian(mesh: BMesh) -> np.ndarray:
 
     L = sp.eye(n) - sp.linalg.inv(D.tocsc()) @ A
     return L.tocsc()
+
+
+def bmedge_vector(edge: BMEdge) -> Vector:
+    v1, v2 = edge.verts
+    return v1.co - v2.co
+
+
+def opposite_edge(tri: BMFace, v: BMVert) -> BMEdge:
+    return [e for e in tri.edges if v.link_edges not in tri.edges][0]
+
+
+def global_gradient_matrix(bm: BMesh) -> np.ndarray:
+    n = len(bm.verts)   # no. vertices
+    m = len(bm.faces)   # three times no. triangles
+
+    global_gradient_matrix = np.zeros((3*m, n))
+
+    for face_idx, face in enumerate(bm.faces):
+        face: BMFace = face
+        normal: Vector = face.normal
+        area = face.calc_area()
+        constant = 1 / (2*area)
+
+        local_gradient_matrix = np.zeros((3, n))
+
+        for v in face.verts:
+            opp_edge = opposite_edge(face, v)
+            opp_edge = bmedge_vector(opp_edge)
+            grad = constant * normal.cross(opp_edge)
+            grad = np.array(grad)
+            local_gradient_matrix[:, v.index] = grad
+
+        global_gradient_matrix[face_idx*3:face_idx*3+3, :] = local_gradient_matrix
+
+    return global_gradient_matrix

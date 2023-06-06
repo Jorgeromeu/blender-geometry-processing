@@ -4,6 +4,7 @@ import pstats
 import bmesh
 import bpy.props
 import mathutils
+import scipy.sparse as sp
 
 from .meshutil import *
 
