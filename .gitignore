@@ -161,10 +161,6 @@ cython_debug/
 
 *.blend1
 
-<<<<<<< HEAD
-start_blender.py
+profile.prof
 evaluation
 animation
-=======
-start_blender.py
->>>>>>> a600593679f13580e05af4095303344d03da545c
