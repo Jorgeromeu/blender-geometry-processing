@@ -1,8 +1,8 @@
 import scipy.sparse as sp
-from bmesh.types import BMesh, BMFace, BMEdge, BMVert
+from bmesh.types import BMFace, BMEdge, BMVert
 from mathutils import Vector
-from bpyutil import *
 
+from bpyutil import *
 
 def neighbors(v: BMVert, only_boundaries=False) -> list[BMVert]:
     neighbors = []
@@ -20,7 +20,6 @@ def neighbors(v: BMVert, only_boundaries=False) -> list[BMVert]:
 
     return neighbors
 
-
 def centroid(ps: list[Vector]):
     p_sum = Vector((0, 0, 0))
     for p in ps:
@@ -28,11 +27,9 @@ def centroid(ps: list[Vector]):
 
     return p_sum / len(ps)
 
-
 def is_boundary_edge(e: BMEdge) -> bool:
     # edge is a boundary loop when it only has one adjacent face
     return len(e.link_faces) == 1
-
 
 def compute_genus(bm: BMesh, n_boundaries: int) -> float:
     n_verts = len(list(bm.verts))
@@ -40,7 +37,6 @@ def compute_genus(bm: BMesh, n_boundaries: int) -> float:
     n_faces = len(list(bm.faces))
 
     return 1 - (n_verts - n_edges + n_faces + n_boundaries) / 2
-
 
 def compute_boundary_loops(bm: BMesh, select_edges=False) -> int:
     # find all edges that are boundaries
@@ -88,7 +84,6 @@ def compute_boundary_loops(bm: BMesh, select_edges=False) -> int:
 
     return n_loops
 
-
 def compute_mesh_volume(bm: BMesh) -> float:
     total_volume = 0
     for face in bm.faces:
@@ -99,7 +94,6 @@ def compute_mesh_volume(bm: BMesh) -> float:
         total_volume += tetra_volume
 
     return total_volume
-
 
 def compute_connected_components(bm: BMesh) -> int:
     n_components = 0
@@ -129,7 +123,6 @@ def compute_connected_components(bm: BMesh) -> int:
 
     return n_components
 
-
 def compute_laplace_coords(bm: BMesh) -> dict[int, Vector]:
     # precompute laplace coordinates of mesh
     laplace_coords = {}
@@ -146,7 +139,6 @@ def compute_laplace_coords(bm: BMesh) -> dict[int, Vector]:
         laplace_coords[v.index] = laplace_coord
 
     return laplace_coords
-
 
 def mesh_laplacian(mesh: BMesh) -> np.ndarray:
     n = len(mesh.verts)
@@ -165,7 +157,6 @@ def mesh_laplacian(mesh: BMesh) -> np.ndarray:
     L = sp.eye(n) - sp.linalg.inv(D.tocsc()) @ A
     return L.tocsc()
 
-
 def triangle_area(triangle: BMFace) -> float:
     """Calculates the mass matrix for a single triangle:
     """
@@ -179,7 +170,6 @@ def triangle_area(triangle: BMFace) -> float:
     area = 0.5 * AB.length * AC.length * sinTheta
     # return np.eye(3) * area
     return area
-
 
 def compute_mass_matrix(mesh: BMesh) -> np.ndarray:
     """
@@ -199,44 +189,41 @@ def compute_mass_matrix(mesh: BMesh) -> np.ndarray:
         ti_area[np.where(ti_area == 1)] = triangle_area(face)
     return mass
 
-
 def bmedge_vector(edge: BMEdge) -> Vector:
     v1, v2 = edge.verts
-    return v1.co - v2.co
-
+    return v2.co - v1.co
 
 def opposite_edge(tri: BMFace, v: BMVert) -> BMEdge:
-    return [e for e in tri.edges if v.link_edges not in tri.edges][0]
-
+    return [e for e in tri.edges if e not in v.link_edges][0]
 
 def compute_gradient_matrix(bm: BMesh) -> np.ndarray:
     """
     Computes gradient matrix of a mesh.
     """
-    n = len(bm.verts)   # no. vertices
-    m = len(bm.faces)   # three times no. triangles
+    n = len(bm.verts)  # no. vertices
+    m = len(bm.faces)  # three times no. triangles
 
-    global_gradient_matrix = np.zeros((3*m, n))
+    global_gradient_matrix = np.zeros((3 * m, n))
 
     for face_idx, face in enumerate(bm.faces):
         face: BMFace = face
         normal: Vector = face.normal
         area = face.calc_area()
-        constant = 1 / (2*area)
+        constant = 1 / (2 * area)
 
         local_gradient_matrix = np.zeros((3, n))
 
         for v in face.verts:
             opp_edge = opposite_edge(face, v)
             opp_edge = bmedge_vector(opp_edge)
+
             grad = constant * normal.cross(opp_edge)
             grad = np.array(grad)
             local_gradient_matrix[:, v.index] = grad
 
-        global_gradient_matrix[face_idx*3:face_idx*3+3, :] = local_gradient_matrix
+        global_gradient_matrix[face_idx * 3:face_idx * 3 + 3, :] = local_gradient_matrix
 
     return global_gradient_matrix
-
 
 def compute_cotangent_matrix(bm: BMesh):
     """

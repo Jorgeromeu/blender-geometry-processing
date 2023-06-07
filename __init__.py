@@ -1,12 +1,14 @@
+import subprocess
+import sys
+
 from .BoundaryLoops import *
 from .ComputeGenus import *
 from .ConnectedComponentsOp import *
 from .DeformationOperator import *
-from .ICPOperator import *
-from .VolumeOperator import *
 from .DifferentialCoordinatesOperator import *
-import subprocess
-import sys
+from .ICPOperator import *
+from .TestOperator import TestOperator
+from .VolumeOperator import *
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "scipy"])
 
@@ -21,8 +23,9 @@ bl_info = {
     "category": "Generic"
 }
 
-classes = [ComputeGenus, ConnectedComponentsOp, VolumeOperator, BoundaryLoopsOp, ICPOperator, DeformationOp,
-           TranslateVertexOperator, DifferentialCoordinatesOp]
+classes = [ComputeGenus, ConnectedComponentsOp, VolumeOperator,
+           BoundaryLoopsOp, ICPOperator, DeformationOp,
+           TranslateVertexOperator, DifferentialCoordinatesOp, TestOperator]
 
 def register():
     print('gdp-addon registered')
