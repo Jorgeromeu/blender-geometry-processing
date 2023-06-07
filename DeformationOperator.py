@@ -56,20 +56,6 @@ def optimal_v(og_delta: np.ndarray, laplacian, a: float,
     return opt_v
 
 
-def triangulate_object(obj):
-    me = obj.data
-    # Get a BMesh representation
-    bm = bmesh.new()
-    bm.from_mesh(me)
-
-    bmesh.ops.triangulate(bm, faces=bm.faces[:])
-    # V2.79 : bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method=0, ngon_method=0)
-
-    # Finish up, write the bmesh back to the mesh
-    bm.to_mesh(me)
-    bm.free()
-
-
 class DeformationOp(bpy.types.Operator):
     bl_idname = "object.implicitdeform"
     bl_label = "GDP deformation"
@@ -78,6 +64,8 @@ class DeformationOp(bpy.types.Operator):
     constraint_weight: bpy.props.FloatProperty(name='Lambda', default=0.9, min=0, max=1)
 
     preserve_centroid: bpy.props.BoolProperty(name='Preserve Centroid', default=True)
+
+    matrix_cache = {}
 
     # define which axis to affect
     affect_x: bpy.props.BoolProperty(name='X', default=True)
@@ -132,7 +120,7 @@ class DeformationOp(bpy.types.Operator):
         og_vs = to_vs(mesh, self._dims())
         og_deltas = [laplacian @ vd.reshape((len(vd), 1)) for vd in og_vs]
 
-        # for each dimension, minimize weighted sum of constraint energy and deformation ener   gy
+        # for each dimension, minimize weighted sum of constraint energy and deformation energy
         opt_vs = og_vs
         for d_i, d in enumerate(self._dims()):
             constraint_matrix, constraint_rhs = self.construct_constraint_system(d_i, og_vs[d_i])
@@ -149,7 +137,21 @@ class DeformationOp(bpy.types.Operator):
             self.report({'ERROR'}, "Select a single object to deform")
             return {'CANCELLED'}
         obj = bpy.context.selected_objects[0]
+
         triangulate_object(obj)
+
+        if obj not in self.__class__.matrix_cache:
+            print("Matrix cache miss - building and factorizing")
+            mesh = mesh_from_object(obj)
+            # Get the cotangent matrix G^TM_vG and the partial rhs G^TM_v and cache them.
+            matrices = compute_deformation_matrices(mesh)
+            self.__class__.matrix_cache[obj] = (sp.linalg.splu(matrices[0]), matrices[1])
+
+        contangent_matrix = self.__class__.matrix_cache[obj][0]
+        partial_rhs = self.__class__.matrix_cache[obj][1]
+
+        #TODO: SOMETHING AFTER THIS POINT IS VERY SLOW
+
         # read handles
         self.handles = []
         vertex_groups = obj.vertex_groups

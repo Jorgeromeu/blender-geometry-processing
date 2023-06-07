@@ -1,8 +1,37 @@
+import bmesh
 import scipy.sparse as sp
 from bmesh.types import BMFace, BMEdge, BMVert
 from mathutils import Vector
 
 from bpyutil import *
+
+def mesh_from_object(object) -> BMesh:
+    mesh = object.data
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    return bm
+
+def triangulate_object(obj):
+    """
+    Triangulates an object.
+    """
+    me = obj.data
+
+    # Get a BMesh representation
+    bm = bmesh.new()
+    bm.from_mesh(me)
+
+    # Check if the mesh is already triangular
+    bm.faces.ensure_lookup_table()  # ensures next lines index access works
+    if len(bm.faces[0].verts) == 3:
+        print("Mesh already triangulated")
+        return
+
+    bmesh.ops.triangulate(bm, faces=bm.faces[:])
+
+    # Finish up, write the bmesh back to the mesh
+    bm.to_mesh(me)
+    bm.free()
 
 def neighbors(v: BMVert, only_boundaries=False) -> list[BMVert]:
     neighbors = []
@@ -168,10 +197,9 @@ def triangle_area(triangle: BMFace) -> float:
     cosTheta = AB.dot(AC) / (AB.length * AC.length)
     sinTheta = np.sqrt(1 - cosTheta ** 2)
     area = 0.5 * AB.length * AC.length * sinTheta
-    # return np.eye(3) * area
     return area
 
-def compute_mass_matrix(mesh: BMesh) -> np.ndarray:
+def compute_mass_matrix(mesh: BMesh, return_sparse=True) -> np.ndarray:
     """
     Returns the mash matrix for a given mesh.
     M = [ A_{T1} 0 ...        0   ]
@@ -187,6 +215,8 @@ def compute_mass_matrix(mesh: BMesh) -> np.ndarray:
     for face_index, face in enumerate(mesh.faces):
         ti_area = mass[(face_index * 3):(face_index * 3 + 3)]
         ti_area[np.where(ti_area == 1)] = triangle_area(face)
+    if return_sparse:
+        mass = sp.csr_matrix(mass)
     return mass
 
 def bmedge_vector(edge: BMEdge) -> Vector:
@@ -196,9 +226,10 @@ def bmedge_vector(edge: BMEdge) -> Vector:
 def opposite_edge(tri: BMFace, v: BMVert) -> BMEdge:
     return [e for e in tri.edges if e not in v.link_edges][0]
 
-def compute_gradient_matrix(bm: BMesh) -> np.ndarray:
+def compute_gradient_matrix(bm: BMesh, return_sparse=True) -> np.ndarray:
     """
     Computes gradient matrix of a mesh.
+    If `return_sparse` is set to true, the method returns a SCS Sparse Scipy matrix.
     """
     n = len(bm.verts)  # no. vertices
     m = len(bm.faces)  # three times no. triangles
@@ -223,6 +254,8 @@ def compute_gradient_matrix(bm: BMesh) -> np.ndarray:
 
         global_gradient_matrix[face_idx * 3:face_idx * 3 + 3, :] = local_gradient_matrix
 
+    if return_sparse:
+        global_gradient_matrix = sp.csr_matrix(global_gradient_matrix)
     return global_gradient_matrix
 
 def compute_cotangent_matrix(bm: BMesh):
@@ -232,3 +265,13 @@ def compute_cotangent_matrix(bm: BMesh):
     gradient_matrix = compute_gradient_matrix(bm)
     mass_matrix = compute_mass_matrix(bm)
     return gradient_matrix.T @ mass_matrix @ gradient_matrix
+
+def compute_deformation_matrices(bm: BMesh) -> (sp.csr_matrix, sp.csr_matrix):
+    """
+    Compute the cotangent matrix of a mesh, G^TM_vG and the partial
+    right hand side matrix G^TM_v.
+    """
+    gradient_matrix = compute_gradient_matrix(bm)
+    mass_matrix = compute_mass_matrix(bm)
+    gradient_matrix_trans = gradient_matrix.T
+    return gradient_matrix_trans @ mass_matrix @ gradient_matrix, gradient_matrix_trans @ mass_matrix
