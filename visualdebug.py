@@ -3,7 +3,6 @@ import numpy as np
 
 DEBUG_COLLECTION_NAME = 'DEBUG'
 
-
 def clear_debug_collection():
     collection = bpy.data.collections.get(DEBUG_COLLECTION_NAME)
 
@@ -15,7 +14,6 @@ def clear_debug_collection():
             collection.objects.unlink(obj)
             # Remove the object from the Blender scene
             bpy.data.objects.remove(obj)
-
 
 def get_debug_collection():
     """
@@ -31,7 +29,6 @@ def get_debug_collection():
         bpy.context.scene.collection.children.link(collection)
 
     return bpy.data.collections[DEBUG_COLLECTION_NAME]
-
 
 def create_dir_vector(name: str, origin: np.ndarray, direction: np.ndarray, length=0.1):
     endpoint = origin + length * direction
@@ -51,7 +48,6 @@ def create_dir_vector(name: str, origin: np.ndarray, direction: np.ndarray, leng
     collection = get_debug_collection()
     create_object_from_pydata(verts, edges, faces, name, collection)
 
-
 def create_object_from_pydata(verts, edges, faces, name, collection):
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata(verts, edges, faces)
@@ -61,7 +57,6 @@ def create_object_from_pydata(verts, edges, faces, name, collection):
     # create obj
     obj = bpy.data.objects.new(name, mesh)
     collection.objects.link(obj)
-
 
 def create_edge_vector(name: str, start: np.ndarray, stop: np.ndarray, length=1):
     create_dir_vector(name, start, stop - start, length=length)

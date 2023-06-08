@@ -2,6 +2,7 @@ import subprocess
 import sys
 
 from .BoundaryLoops import *
+from .BrushOperator import BrushOperator
 from .ComputeGenus import *
 from .ConnectedComponentsOp import *
 from .DeformationOperator import *
@@ -25,8 +26,8 @@ bl_info = {
 
 classes = [ComputeGenus, ConnectedComponentsOp, VolumeOperator,
            BoundaryLoopsOp, ICPOperator, DeformationOp,
-           TranslateVertexOperator, DifferentialCoordinatesOp, TestOperator]
-
+           TranslateVertexOperator, DifferentialCoordinatesOp,
+           TestOperator, BrushOperator]
 
 def register():
     print('gdp-addon registered')
@@ -42,11 +43,11 @@ def register():
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(TranslateVertexOperator.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(DifferentialCoordinatesOp.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(TestOperator.bl_idname))
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(BrushOperator.bl_idname))
 
     # # register all operators
     # for op in object_ops:
     #     bpy.types.VIEW3D_MT_object.append(lambda self, ctx: self.layout.operator(op.bl_idname))
-
 
 def unregister():
     print('gdp-addon unregistered')

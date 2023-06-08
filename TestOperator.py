@@ -1,5 +1,3 @@
-import bmesh
-
 import meshutil
 import visualdebug
 from meshutil import *
@@ -9,7 +7,7 @@ class TestOperator(bpy.types.Operator):
     bl_label = "Test Operator"
     bl_options = {'REGISTER', 'UNDO'}
 
-    length: bpy.props.FloatProperty(name='Length', default=0.1, min=0, max=5)
+    length: bpy.props.FloatProperty(name='Length', default=0.01, min=0, max=5)
 
     def fun(self, v):
         print(v)
@@ -46,5 +44,6 @@ class TestOperator(bpy.types.Operator):
         # set 'height' attribute to z coord of each vertex
         set_vertex_attrib(obj, 'fun', np.array([self.fun(v.co) for v in bm.verts]))
         set_face_attrib(obj, 'grad', np.array(grad_magnitudes))
+        set_face_attrib(obj, 'grad_magnitude', np.array(grad_magnitudes), normalize=False)
 
         return {'FINISHED'}

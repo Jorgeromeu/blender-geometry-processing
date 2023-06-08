@@ -1,44 +1,10 @@
 import cProfile
 import pstats
 
-import bmesh
 import bpy.props
 import mathutils
-import scipy.sparse as sp
 
 from .meshutil import *
-
-
-def to_vs(mesh: BMesh, dims: list[int]) -> list[np.ndarray]:
-    """
-    Convert a BMesh into vx, vy, vz representation
-    :param mesh: the mesh
-    :param dims: the set of dimensions to convert, e.g [0, 1, 2] for full representation
-    """
-
-    vs = [[] for _ in dims]
-
-    for v in mesh.verts:
-        for d_i, _ in enumerate(dims):
-            vs[d_i].append(v.co[d_i])
-
-    for i, _ in enumerate(vs):
-        vs[i] = np.array(vs[i])
-
-    return vs
-
-
-def set_vs(bm: BMesh, vs: list[np.ndarray], dims: list[int]) -> BMesh:
-    """
-    Set the mesh to the provided vx, vy, vz
-    """
-
-    for v_i, v in enumerate(bm.verts):
-
-        # set each dimension of v
-        for d_i, dim in enumerate(dims):
-            v.co[dim] = vs[d_i][v_i]
-
 
 def optimal_v(og_delta: np.ndarray, laplacian, a: float,
               constraint_matrix: np.ndarray, constraint_rhs: np.ndarray) -> np.ndarray:
@@ -54,7 +20,6 @@ def optimal_v(og_delta: np.ndarray, laplacian, a: float,
     opt_v = sp.linalg.spsolve(matrix, rhs)
     # opt_v = np.linalg.solve(matrix, rhs.flatten())
     return opt_v
-
 
 class DeformationOp(bpy.types.Operator):
     bl_idname = "object.implicitdeform"
@@ -117,7 +82,7 @@ class DeformationOp(bpy.types.Operator):
         laplacian = mesh_laplacian(mesh)
 
         # get original vertex positions and laplacian coordinates of the mesh
-        og_vs = to_vs(mesh, self._dims())
+        og_vs = to_vxvyvz(mesh, self._dims())
         og_deltas = [laplacian @ vd.reshape((len(vd), 1)) for vd in og_vs]
 
         # for each dimension, minimize weighted sum of constraint energy and deformation energy
@@ -143,9 +108,9 @@ class DeformationOp(bpy.types.Operator):
         if obj not in self.__class__.matrix_cache:
             print("Matrix cache miss - building and factorizing")
             mesh = mesh_from_object(obj)
-            # Get the cotangent matrix G^TM_vG and the partial rhs G^TM_v and cache them.
-            matrices = compute_deformation_matrices(mesh)
-            self.__class__.matrix_cache[obj] = (sp.linalg.splu(matrices[0]), matrices[1])
+            # Get the gradient, cotangent matrix G^TM_vG and the partial rhs G^TM_v and cache them.
+            gradient, cotangent, gtmv = compute_deformation_matrices(mesh)
+            self.__class__.matrix_cache[obj] = (sp.linalg.splu(cotangent), gtmv)
 
         contangent_matrix = self.__class__.matrix_cache[obj][0]
         partial_rhs = self.__class__.matrix_cache[obj][1]
@@ -171,7 +136,6 @@ class DeformationOp(bpy.types.Operator):
         stats.dump_stats(filename='profile.prof')
 
         return {'FINISHED'}
-
 
 class TranslateVertexOperator(bpy.types.Operator):
     bl_idname = "object.translate_vertex"
