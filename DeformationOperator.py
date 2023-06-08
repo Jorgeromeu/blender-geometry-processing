@@ -150,7 +150,7 @@ class DeformationOp(bpy.types.Operator):
         contangent_matrix = self.__class__.matrix_cache[obj][0]
         partial_rhs = self.__class__.matrix_cache[obj][1]
 
-        #TODO: SOMETHING AFTER THIS POINT IS VERY SLOW
+        # TODO: SOMETHING AFTER THIS POINT IS VERY SLOW
 
         # read handles
         self.handles = []

@@ -41,7 +41,7 @@ class TestOperator(bpy.types.Operator):
             centroid = np.average([obj.matrix_world @ v.co for v in tri.verts], axis=0)
             grad_magnitudes.append(np.linalg.norm(grad))
             gradient_normalized = grad / np.linalg.norm(grad)
-            visualdebug.create_dir_vector(f'dir{tri.index}', centroid, gradient_normalized, length=self.length)
+            visualdebug.create_dir_vector(f'dir{tri.index}', centroid, grad, length=self.length)
 
         # set 'height' attribute to z coord of each vertex
         set_vertex_attrib(obj, 'fun', np.array([self.fun(v.co) for v in bm.verts]))
