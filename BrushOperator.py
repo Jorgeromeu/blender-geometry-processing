@@ -1,6 +1,6 @@
 import visualdebug
+from matrix_cache import get_matrices
 from meshutil import *
-from scipy.spatial.transform import Rotation as R
 
 class BrushOperator(bpy.types.Operator):
     bl_idname = "object.geobrush"
@@ -13,16 +13,14 @@ class BrushOperator(bpy.types.Operator):
     ry: bpy.props.IntProperty(name='Ry', default=0, min=0, max=359)
     rz: bpy.props.IntProperty(name='Rz', default=0, min=0, max=359)
 
-    matrix_cache = {}
-
     def matrix(self):
-        # return np.eye(3) * self.length
-        return R.from_euler('xyz', [self.rx, self.ry, self.rz], degrees=True).as_matrix()
+        return np.eye(3) * self.length
+        # return R.from_euler('xyz', [self.rx, self.ry, self.rz], degrees=True).as_matrix()
 
     def execute(self, context):
         visualdebug.clear_debug_collection()
 
-        obj = context.active_object
+        obj = bpy.context.active_object
 
         # ensure in edit mode
         bpy.context.view_layer.objects.active = obj
@@ -32,17 +30,8 @@ class BrushOperator(bpy.types.Operator):
         mesh = obj.data
         bm = bmesh.from_edit_mesh(mesh)
 
-        if obj not in self.__class__.matrix_cache:
-            print("Matrix cache miss - building and factorizing")
-            # Get the cotangent matrix G^TM_vG and the partial rhs G^TM_v and cache them.
-            gradient, cotangent, gtmv = compute_deformation_matrices(bm)
-            self.__class__.matrix_cache[obj] = (gradient, sp.linalg.splu(cotangent), gtmv)
-
-        # compute matrices
-        gradient_matrix, cotangent_matrix, gtmv = self.__class__.matrix_cache[obj]
-
-        # cotangent_matrix = compute_cotangent_matrix(bm)
-        # mass_matrix = compute_mass_matrix(bm)
+        # get cached matrices
+        gradient_matrix, cotangent_matrix, gtmv = get_matrices(obj, bm)
 
         # get coordinate embeddings
         vx, vy, vz = to_vxvyvz(bm, dims=[0, 1, 2])
@@ -79,19 +68,11 @@ class BrushOperator(bpy.types.Operator):
         modified_grads_y = modified_grads_y.reshape(-1, 1)
         modified_grads_z = modified_grads_z.reshape(-1, 1)
 
-        # rhs_x = (gradient_matrix.T @ mass_matrix @ modified_grads_x).flatten()
-        # rhs_y = (gradient_matrix.T @ mass_matrix @ modified_grads_y).flatten()
-        # rhs_z = (gradient_matrix.T @ mass_matrix @ modified_grads_z).flatten()
-
         rhs_x = (gtmv @ modified_grads_x).flatten()
         rhs_y = (gtmv @ modified_grads_y).flatten()
         rhs_z = (gtmv @ modified_grads_z).flatten()
 
         center_og = centroid([corner.co for corner in bm.verts])
-
-        # new_vx = np.linalg.solve(cotangent_matrix.todense(), rhs_x)
-        # new_vy = np.linalg.solve(cotangent_matrix.todense(), rhs_y)
-        # new_vz = np.linalg.solve(cotangent_matrix.todense(), rhs_z)
 
         new_vx = cotangent_matrix.solve(rhs_x)
         new_vy = cotangent_matrix.solve(rhs_y)
@@ -108,5 +89,7 @@ class BrushOperator(bpy.types.Operator):
 
         for v in bm.verts:
             v.co -= diff
+
+        bm.free()
 
         return {'FINISHED'}

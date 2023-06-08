@@ -1,4 +1,3 @@
-import bmesh
 from .meshutil import *
 
 class ComputeGenus(bpy.types.Operator):

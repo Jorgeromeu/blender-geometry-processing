@@ -2,15 +2,14 @@ import meshutil
 import visualdebug
 from meshutil import *
 
-class TestOperator(bpy.types.Operator):
-    bl_idname = "object.testop"
-    bl_label = "Test Operator"
+class HeatmapOperator(bpy.types.Operator):
+    bl_idname = "object.heatmapop"
+    bl_label = "Heatmap"
     bl_options = {'REGISTER', 'UNDO'}
 
     length: bpy.props.FloatProperty(name='Length', default=0.01, min=0, max=5)
 
     def fun(self, v):
-        print(v)
         return v[2]
 
     def execute(self, context):

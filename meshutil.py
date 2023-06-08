@@ -260,7 +260,11 @@ def compute_deformation_matrices(bm: BMesh) -> (sp.csr_matrix, sp.csr_matrix):
     gradient_matrix = compute_gradient_matrix(bm)
     mass_matrix = compute_mass_matrix(bm)
     gradient_matrix_trans = gradient_matrix.T
-    return gradient_matrix, gradient_matrix_trans @ mass_matrix @ gradient_matrix, gradient_matrix_trans @ mass_matrix
+
+    cotangent = gradient_matrix_trans @ mass_matrix @ gradient_matrix
+    gtmv = gradient_matrix_trans @ mass_matrix
+
+    return gradient_matrix, cotangent, gtmv
 
 def to_vxvyvz(mesh: BMesh, dims: list[int]) -> list[np.ndarray]:
     """
