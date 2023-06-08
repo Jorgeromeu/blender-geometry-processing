@@ -3,6 +3,7 @@ import sys
 
 from .BoundaryLoops import *
 from .BrushOperator import BrushOperator
+from .LaplacianBrushOperator import LaplacianBrushOperator
 from .ComputeGenus import *
 from .ConnectedComponentsOp import *
 from .DeformationOperator import *
@@ -27,7 +28,7 @@ bl_info = {
 classes = [ComputeGenus, ConnectedComponentsOp, VolumeOperator,
            BoundaryLoopsOp, ICPOperator, DeformationOp,
            TranslateVertexOperator, DifferentialCoordinatesOp,
-           HeatmapOperator, BrushOperator]
+           HeatmapOperator, BrushOperator, LaplacianBrushOperator]
 
 
 def register():
@@ -45,6 +46,7 @@ def register():
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(DifferentialCoordinatesOp.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(HeatmapOperator.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(BrushOperator.bl_idname))
+    bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(LaplacianBrushOperator.bl_idname))
 
 
 def unregister():

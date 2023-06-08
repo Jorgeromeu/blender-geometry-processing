@@ -1,12 +1,13 @@
+import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 import visualdebug
 from meshutil import *
 
 
-class BrushOperator(bpy.types.Operator):
-    bl_idname = "object.geobrush"
-    bl_label = "GDP Brush"
+class LaplacianBrushOperator(bpy.types.Operator):
+    bl_idname = "object.geolaplacebrush"
+    bl_label = "GDP Laplace Brush"
     bl_options = {'REGISTER', 'UNDO'}
 
     scale_x: bpy.props.FloatProperty(name='Scale x', default=1, min=0, max=1000)
@@ -18,9 +19,8 @@ class BrushOperator(bpy.types.Operator):
     rz: bpy.props.IntProperty(name='Rotation z', default=0, min=0, max=359)
 
     # bm: BMesh
-    gradient_matrix: sp.csr_matrix
-    cotangent_matrix: sp.linalg.splu
-    gtmv: sp.csr_matrix
+    laplacian: sp.csc_matrix
+    left_hand_side: sp.linalg.splu
 
     def matrix(self):
         scale = (np.eye(3) * np.array([self.scale_x, self.scale_y, self.scale_z]))
@@ -40,9 +40,8 @@ class BrushOperator(bpy.types.Operator):
         mesh = obj.data
         bm = bmesh.from_edit_mesh(mesh)
 
-        self.gradient_matrix, self.cotangent_matrix, self.gtmv = compute_deformation_matrices(bm)
-
-        self.cotangent_matrix = sp.linalg.splu(self.cotangent_matrix)
+        self.laplacian = mesh_laplacian(bm)
+        self.left_hand_side = sp.linalg.splu(2 * self.laplacian.T @ self.laplacian)
 
         bm.free()
         return self.execute(context)
@@ -63,46 +62,51 @@ class BrushOperator(bpy.types.Operator):
         vx, vy, vz = to_vxvyvz(bm, dims=[0, 1, 2])
 
         # compute, and unflatten gradients of each embedding
-        grads_x = (self.gradient_matrix @ vx).reshape(-1, 3)
-        grads_y = (self.gradient_matrix @ vy).reshape(-1, 3)
-        grads_z = (self.gradient_matrix @ vz).reshape(-1, 3)
+        delta_x = (self.laplacian @ vx).reshape(-1, 1)
+        delta_y = (self.laplacian @ vy).reshape(-1, 1)
+        delta_z = (self.laplacian @ vz).reshape(-1, 1)
 
-        # selected faces
-        selected_faces_indices = [f.index for f in bm.faces if f.select]
+        # selected verts
+        selected_verts_indices = [v.index for v in bm.verts if v.select]
+        print(f"Selected indices: {len(selected_verts_indices)}")
 
         # select gradients
-        selected_grads_x = grads_x[selected_faces_indices]
-        selected_grads_y = grads_y[selected_faces_indices]
-        selected_grads_z = grads_z[selected_faces_indices]
+        selected_delta_x = delta_x[selected_verts_indices]
+        selected_delta_y = delta_y[selected_verts_indices]
+        selected_delta_z = delta_z[selected_verts_indices]
+        print(f"Selected delta shapes: {selected_delta_x.shape}")
 
         # modify the selected gradients with the matrix
-        modified_selected_grads_x = selected_grads_x @ self.matrix()
-        modified_selected_grads_y = selected_grads_y @ self.matrix()
-        modified_selected_grads_z = selected_grads_z @ self.matrix()
+        modified_selected_deltas = np.concatenate((selected_delta_x, selected_delta_y, selected_delta_z),
+                                                  axis=1) @ self.matrix()
+
+        modified_selected_delta_x = modified_selected_deltas[:, 0]
+        modified_selected_delta_y = modified_selected_deltas[:, 1]
+        modified_selected_delta_z = modified_selected_deltas[:, 2]
 
         # get modified gradients
-        modified_grads_x = grads_x
-        modified_grads_y = grads_y
-        modified_grads_z = grads_z
+        modified_delta_x = delta_x.flatten()
+        modified_delta_y = delta_y.flatten()
+        modified_delta_z = delta_z.flatten()
 
-        modified_grads_x[selected_faces_indices] = modified_selected_grads_x
-        modified_grads_y[selected_faces_indices] = modified_selected_grads_y
-        modified_grads_z[selected_faces_indices] = modified_selected_grads_z
+        modified_delta_x[selected_verts_indices] = modified_selected_delta_x
+        modified_delta_y[selected_verts_indices] = modified_selected_delta_y
+        modified_delta_z[selected_verts_indices] = modified_selected_delta_z
 
         # flatten modified gradients
-        modified_grads_x = modified_grads_x.reshape(-1, 1)
-        modified_grads_y = modified_grads_y.reshape(-1, 1)
-        modified_grads_z = modified_grads_z.reshape(-1, 1)
+        modified_deltas_x = modified_delta_x.reshape(-1, 1)
+        modified_deltas_y = modified_delta_y.reshape(-1, 1)
+        modified_deltas_z = modified_delta_z.reshape(-1, 1)
 
-        rhs_x = (self.gtmv @ modified_grads_x).flatten()
-        rhs_y = (self.gtmv @ modified_grads_y).flatten()
-        rhs_z = (self.gtmv @ modified_grads_z).flatten()
+        rhs_x = 2 * (self.laplacian.T @ modified_deltas_x).flatten()
+        rhs_y = 2 * (self.laplacian.T @ modified_deltas_y).flatten()
+        rhs_z = 2 * (self.laplacian.T @ modified_deltas_z).flatten()
 
         center_og = centroid([corner.co for corner in bm.verts])
 
-        new_vx = self.cotangent_matrix.solve(rhs_x)
-        new_vy = self.cotangent_matrix.solve(rhs_y)
-        new_vz = self.cotangent_matrix.solve(rhs_z)
+        new_vx = self.left_hand_side.solve(rhs_x)
+        new_vy = self.left_hand_side.solve(rhs_y)
+        new_vz = self.left_hand_side.solve(rhs_z)
 
         for v_i, v in enumerate(bm.verts):
             v.co.x = new_vx[v_i]
