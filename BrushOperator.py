@@ -1,5 +1,8 @@
+import numpy as np
+
 import visualdebug
 from meshutil import *
+from scipy.spatial.transform import Rotation as R
 
 
 class BrushOperator(bpy.types.Operator):
@@ -7,11 +10,13 @@ class BrushOperator(bpy.types.Operator):
     bl_label = "GDP Brush"
     bl_options = {'REGISTER', 'UNDO'}
 
-    length: bpy.props.FloatProperty(name='Length', default=1, min=0, max=5)
+    scale_x: bpy.props.FloatProperty(name='Scale x', default=1, min=0, max=1000)
+    scale_y: bpy.props.FloatProperty(name='Scale y', default=1, min=0, max=1000)
+    scale_z: bpy.props.FloatProperty(name='Scale z', default=1, min=0, max=1000)
 
-    rx: bpy.props.IntProperty(name='Rx', default=0, min=0, max=359)
-    ry: bpy.props.IntProperty(name='Ry', default=0, min=0, max=359)
-    rz: bpy.props.IntProperty(name='Rz', default=0, min=0, max=359)
+    rx: bpy.props.IntProperty(name='Rotation x', default=0, min=0, max=359)
+    ry: bpy.props.IntProperty(name='Rotation y', default=0, min=0, max=359)
+    rz: bpy.props.IntProperty(name='Rotation z', default=0, min=0, max=359)
 
     # bm: BMesh
     gradient_matrix: sp.csr_matrix
@@ -19,8 +24,9 @@ class BrushOperator(bpy.types.Operator):
     gtmv: sp.csr_matrix
 
     def matrix(self):
-        return np.eye(3) * self.length
-        # return R.from_euler('xyz', [self.rx, self.ry, self.rz], degrees=True).as_matrix()
+        scale = (np.eye(3) * np.array([self.scale_x, self.scale_y, self.scale_z]))
+        rotation = R.from_euler('xyz', [self.rx, self.ry, self.rz], degrees=True).as_matrix()
+        return rotation @ scale
 
     def invoke(self, context, event):
         visualdebug.clear_debug_collection()
