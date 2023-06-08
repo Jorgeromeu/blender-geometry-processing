@@ -1,6 +1,6 @@
 import visualdebug
-from matrix_cache import get_matrices
 from meshutil import *
+
 
 class BrushOperator(bpy.types.Operator):
     bl_idname = "object.geobrush"
@@ -13,11 +13,16 @@ class BrushOperator(bpy.types.Operator):
     ry: bpy.props.IntProperty(name='Ry', default=0, min=0, max=359)
     rz: bpy.props.IntProperty(name='Rz', default=0, min=0, max=359)
 
+    # bm: BMesh
+    gradient_matrix: sp.csr_matrix
+    cotangent_matrix: sp.linalg.splu
+    gtmv: sp.csr_matrix
+
     def matrix(self):
         return np.eye(3) * self.length
         # return R.from_euler('xyz', [self.rx, self.ry, self.rz], degrees=True).as_matrix()
 
-    def execute(self, context):
+    def invoke(self, context, event):
         visualdebug.clear_debug_collection()
 
         obj = bpy.context.active_object
@@ -30,16 +35,32 @@ class BrushOperator(bpy.types.Operator):
         mesh = obj.data
         bm = bmesh.from_edit_mesh(mesh)
 
-        # get cached matrices
-        gradient_matrix, cotangent_matrix, gtmv = get_matrices(obj, bm)
+        self.gradient_matrix, self.cotangent_matrix, self.gtmv = compute_deformation_matrices(bm)
+
+        self.cotangent_matrix = sp.linalg.splu(self.cotangent_matrix)
+
+        bm.free()
+        return self.execute(context)
+
+    def execute(self, context):
+
+        obj = bpy.context.active_object
+
+        # ensure in edit mode
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.mode_set(mode='EDIT')
+
+        # get editable mesh
+        mesh = obj.data
+        bm = bmesh.from_edit_mesh(mesh)
 
         # get coordinate embeddings
         vx, vy, vz = to_vxvyvz(bm, dims=[0, 1, 2])
 
         # compute, and unflatten gradients of each embedding
-        grads_x = (gradient_matrix @ vx).reshape(-1, 3)
-        grads_y = (gradient_matrix @ vy).reshape(-1, 3)
-        grads_z = (gradient_matrix @ vz).reshape(-1, 3)
+        grads_x = (self.gradient_matrix @ vx).reshape(-1, 3)
+        grads_y = (self.gradient_matrix @ vy).reshape(-1, 3)
+        grads_z = (self.gradient_matrix @ vz).reshape(-1, 3)
 
         # selected faces
         selected_faces_indices = [f.index for f in bm.faces if f.select]
@@ -68,15 +89,15 @@ class BrushOperator(bpy.types.Operator):
         modified_grads_y = modified_grads_y.reshape(-1, 1)
         modified_grads_z = modified_grads_z.reshape(-1, 1)
 
-        rhs_x = (gtmv @ modified_grads_x).flatten()
-        rhs_y = (gtmv @ modified_grads_y).flatten()
-        rhs_z = (gtmv @ modified_grads_z).flatten()
+        rhs_x = (self.gtmv @ modified_grads_x).flatten()
+        rhs_y = (self.gtmv @ modified_grads_y).flatten()
+        rhs_z = (self.gtmv @ modified_grads_z).flatten()
 
         center_og = centroid([corner.co for corner in bm.verts])
 
-        new_vx = cotangent_matrix.solve(rhs_x)
-        new_vy = cotangent_matrix.solve(rhs_y)
-        new_vz = cotangent_matrix.solve(rhs_z)
+        new_vx = self.cotangent_matrix.solve(rhs_x)
+        new_vy = self.cotangent_matrix.solve(rhs_y)
+        new_vz = self.cotangent_matrix.solve(rhs_z)
 
         for v_i, v in enumerate(bm.verts):
             v.co.x = new_vx[v_i]

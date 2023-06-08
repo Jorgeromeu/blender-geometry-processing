@@ -18,7 +18,7 @@ bl_info = {
     "author": "Group16",
     "description": "",
     "blender": (3, 5, 0),
-    "version": (0, 0, 1),
+    "version": (0, 0, 2),
     "location": "",
     "warning": "",
     "category": "Generic"
