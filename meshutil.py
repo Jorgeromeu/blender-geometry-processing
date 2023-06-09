@@ -168,22 +168,27 @@ def compute_laplace_coords(bm: BMesh) -> dict[int, Vector]:
 
     return laplace_coords
 
+# def mesh_laplacian(mesh: BMesh) -> np.ndarray:
+#     n = len(mesh.verts)
+#     D = sp.lil_array((n, n))
+#     A = sp.lil_array((n, n))
+#
+#     for i, v_i in enumerate(mesh.verts):
+#
+#         vi_neighbors = neighbors(v_i)
+#
+#         D[i, i] = len(vi_neighbors)
+#
+#         for neighbor in vi_neighbors:
+#             A[i, neighbor.index] = 1
+#
+#     L = sp.eye(n) - sp.linalg.inv(D.tocsc()) @ A
+#     return L.tocsc()
+
 def mesh_laplacian(mesh: BMesh) -> np.ndarray:
-    n = len(mesh.verts)
-    D = sp.lil_array((n, n))
-    A = sp.lil_array((n, n))
-
-    for i, v_i in enumerate(mesh.verts):
-
-        vi_neighbors = neighbors(v_i)
-
-        D[i, i] = len(vi_neighbors)
-
-        for neighbor in vi_neighbors:
-            A[i, neighbor.index] = 1
-
-    L = sp.eye(n) - sp.linalg.inv(D.tocsc()) @ A
-    return L.tocsc()
+    M = sp.linalg.inv(compute_mass_matrix(mesh, return_sparse=True))
+    S = compute_cotangent_matrix(mesh)
+    return M @ S
 
 def compute_mass_matrix(mesh: BMesh, return_sparse=True) -> np.ndarray:
     """
@@ -293,4 +298,3 @@ def set_vs(bm: BMesh, vs: list[np.ndarray], dims: list[int]) -> BMesh:
         # set each dimension of v
         for d_i, dim in enumerate(dims):
             v.co[dim] = vs[d_i][v_i]
-
