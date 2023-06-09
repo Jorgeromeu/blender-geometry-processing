@@ -3,7 +3,7 @@ import re
 import bpy
 import numpy as np
 from bmesh.types import BMesh
-from mathutils import Matrix
+from mathutils import Matrix, Vector
 
 def get_selected_object(ctx: bpy.context) -> bpy.types.Object:
     return bpy.context.object
@@ -57,10 +57,10 @@ def get_first_by_regex(r: str, d=None):
             return v
     return None
 
-def set_attrib(obj, name: str, domain: str, type: str, data: np.ndarray, normalize=True):
+def set_float_attrib(obj, name: str, domain: str, data: np.ndarray, normalize=True):
     # if no attribute exists, make it
     if not obj.data.attributes.get(name):
-        obj.data.attributes.new(name, type=type, domain=domain)
+        obj.data.attributes.new(name, type='FLOAT', domain=domain)
 
     if normalize:
         data = data.copy()
@@ -72,8 +72,19 @@ def set_attrib(obj, name: str, domain: str, type: str, data: np.ndarray, normali
 
     obj.data.attributes[name].data.foreach_set("value", data)
 
-def set_vertex_attrib(obj, name: str, data: np.ndarray, normalize=True):
-    set_attrib(obj, name, 'POINT', 'FLOAT', data, normalize)
+def set_vector_attrib(obj, name: str, domain: str, vectors: np.ndarray):
+    # if no attribute exists, make it
+    if not obj.data.attributes.get(name):
+        obj.data.attributes.new(name, type='FLOAT_VECTOR', domain=domain)
 
-def set_face_attrib(obj, name: str, data: np.ndarray, normalize=True):
-    set_attrib(obj, name, 'FACE', 'FLOAT', data, normalize)
+    for i, vector in enumerate(vectors):
+        obj.data.attributes[name].data[i].vector = Vector(vector)
+
+def set_vector_face_attrib(obj, name: str, vectors):
+    set_vector_attrib(obj, name, 'FACE', vectors)
+
+def set_float_vertex_attrib(obj, name: str, data: np.ndarray, normalize=True):
+    set_float_attrib(obj, name, 'POINT', data, normalize)
+
+def set_float_face_attrib(obj, name: str, data: np.ndarray, normalize=True):
+    set_float_attrib(obj, name, 'FACE', data, normalize)

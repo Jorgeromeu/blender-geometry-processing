@@ -7,13 +7,7 @@ class HeatmapOperator(bpy.types.Operator):
     bl_label = "Heatmap"
     bl_options = {'REGISTER', 'UNDO'}
 
-    length: bpy.props.FloatProperty(name='Length', default=0.01, min=0, max=5)
-
-    def fun(self, v):
-        return v[2]
-
     def execute(self, context):
-
         visualdebug.clear_debug_collection()
 
         # ensure single object is selected
@@ -28,21 +22,27 @@ class HeatmapOperator(bpy.types.Operator):
 
         gradient_matrix = meshutil.compute_gradient_matrix(bm)
 
-        funvals = np.array([self.fun(obj.matrix_world @ v.co) for v in bm.verts]).reshape((-1, 1))
-        grads = (gradient_matrix @ funvals)
-        grads = grads.reshape(-1, 3)
+        vx = [v.co.x for v in bm.verts]
+        vy = [v.co.y for v in bm.verts]
+        vz = [v.co.z for v in bm.verts]
 
-        grad_magnitudes = []
+        grads_x = (gradient_matrix @ vx).reshape(-1, 3)
+        grads_y = (gradient_matrix @ vy).reshape(-1, 3)
+        grads_z = (gradient_matrix @ vz).reshape(-1, 3)
 
-        for tri, grad in zip(bm.faces, grads):
-            centroid = np.average([obj.matrix_world @ v.co for v in tri.verts], axis=0)
-            grad_magnitudes.append(np.linalg.norm(grad))
-            gradient_normalized = grad / np.linalg.norm(grad)
-            visualdebug.create_dir_vector(f'dir{tri.index}', centroid, grad, length=self.length)
+        # save embeddings to attributes
+        set_float_vertex_attrib(obj, 'vx', np.array(vx))
+        set_float_vertex_attrib(obj, 'vy', np.array(vy))
+        set_float_vertex_attrib(obj, 'vz', np.array(vz))
 
-        # set 'height' attribute to z coord of each vertex
-        set_vertex_attrib(obj, 'fun', np.array([self.fun(v.co) for v in bm.verts]))
-        set_face_attrib(obj, 'grad', np.array(grad_magnitudes))
-        set_face_attrib(obj, 'grad_magnitude', np.array(grad_magnitudes), normalize=False)
+        # save gradients for each embedding to attributes
+        set_float_face_attrib(obj, 'grad_magnitude_vx', np.linalg.norm(grads_x, axis=1))
+        set_float_face_attrib(obj, 'grad_magnitude_vy', np.linalg.norm(grads_y, axis=1))
+        set_float_face_attrib(obj, 'grad_magnitude_vz', np.linalg.norm(grads_z, axis=1))
+
+        # save actual gradients as attributes
+        set_vector_face_attrib(obj, 'grad_vx', [Vector(grad) for grad in grads_x])
+        set_vector_face_attrib(obj, 'grad_vy', grads_y)
+        set_vector_face_attrib(obj, 'grad_vz', grads_z)
 
         return {'FINISHED'}

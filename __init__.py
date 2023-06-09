@@ -3,13 +3,13 @@ import sys
 
 from .BoundaryLoops import *
 from .BrushOperator import BrushOperator
-from .LaplacianBrushOperator import LaplacianBrushOperator
 from .ComputeGenus import *
 from .ConnectedComponentsOp import *
 from .DeformationOperator import *
 from .DifferentialCoordinatesOperator import *
 from .HeatmapOperator import *
 from .ICPOperator import *
+from .LaplacianBrushOperator import LaplacianBrushOperator
 from .VolumeOperator import *
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "scipy"])
@@ -30,7 +30,6 @@ classes = [ComputeGenus, ConnectedComponentsOp, VolumeOperator,
            TranslateVertexOperator, DifferentialCoordinatesOp,
            HeatmapOperator, BrushOperator, LaplacianBrushOperator]
 
-
 def register():
     print('gdp-addon registered')
     for c in classes:
@@ -47,7 +46,6 @@ def register():
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(HeatmapOperator.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(BrushOperator.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(LaplacianBrushOperator.bl_idname))
-
 
 def unregister():
     print('gdp-addon unregistered')
