@@ -1,8 +1,6 @@
 from scipy.spatial.transform import Rotation as R
 
-import visualdebug
 from meshutil import *
-
 
 class BrushOperator(bpy.types.Operator):
     bl_idname = "object.geobrush"
@@ -28,7 +26,6 @@ class BrushOperator(bpy.types.Operator):
         return rotation @ scale
 
     def invoke(self, context, event):
-        visualdebug.clear_debug_collection()
 
         obj = bpy.context.active_object
 
@@ -40,11 +37,14 @@ class BrushOperator(bpy.types.Operator):
         mesh = obj.data
         bm = bmesh.from_edit_mesh(mesh)
 
+        # compute gradient matrix
         self.gradient_matrix, self.cotangent_matrix, self.gtmv = compute_deformation_matrices(bm)
 
+        # compute and factorize cotangent matrix
         self.cotangent_matrix = sp.linalg.splu(self.cotangent_matrix)
 
         bm.free()
+
         return self.execute(context)
 
     def execute(self, context):
@@ -104,6 +104,7 @@ class BrushOperator(bpy.types.Operator):
         new_vy = self.cotangent_matrix.solve(rhs_y)
         new_vz = self.cotangent_matrix.solve(rhs_z)
 
+        # set vertex coordinates
         for v_i, v in enumerate(bm.verts):
             v.co.x = new_vx[v_i]
             v.co.y = new_vy[v_i]

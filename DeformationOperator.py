@@ -2,7 +2,6 @@ import cProfile
 import pstats
 
 import bpy.props
-import mathutils
 
 from .meshutil import *
 
@@ -141,41 +140,11 @@ class TranslateVertexOperator(bpy.types.Operator):
     bl_idname = "object.translate_vertex"
     bl_label = "Translate Vertex"
 
-    start_mouse_pos = None
-    start_vertex_pos = None
-    selected_vert = None
-
     def modal(self, context, event):
-        print('A')
-        if event.type == 'MOUSEMOVE':
-            mouse_pos = mathutils.Vector((event.mouse_region_x, event.mouse_region_y))
-
-            if self.start_mouse_pos:
-                translation = mouse_pos - self.start_mouse_pos
-                self.selected_vert.co = self.start_vertex_pos + translation
-            return {'RUNNING_MODAL'}
-
-        elif event.type == 'LEFTMOUSE':
-            return {'FINISHED'}
-
-        elif event.type in {'RIGHTMOUSE', 'ESC'}:
-            return {'RUNNING_MODAL'}
+        pass
 
     def invoke(self, context, event):
+        pass
 
-        if bpy.context.active_object is None:
-            self.report({'WARNING'}, 'no active object')
-            return {'CANCELLED'}
-        if bpy.context.active_object.type != 'MESH':
-            self.report({'WARNING'}, 'no mesh selected')
-            return {'CANCELLED'}
-
-        obj = bpy.context.selected_objects[0]
-        mesh = bmesh.from_edit_mesh(obj.data)
-
-        # TODO handle more than one / zero selection
-        self.selected_vert = [v for v in mesh.verts if v.select][0]
-
-        self.start_mouse_pos = mathutils.Vector((event.mouse_region_x, event.mouse_region_y))
-
-        return {'RUNNING_MODAL'}
+    def execute(self, context):
+        pass

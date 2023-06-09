@@ -1,7 +1,6 @@
 import bmesh
 import scipy.sparse as sp
 from bmesh.types import BMFace, BMEdge, BMVert
-from mathutils import Vector
 
 from bpyutil import *
 
@@ -294,3 +293,4 @@ def set_vs(bm: BMesh, vs: list[np.ndarray], dims: list[int]) -> BMesh:
         # set each dimension of v
         for d_i, dim in enumerate(dims):
             v.co[dim] = vs[d_i][v_i]
+

@@ -1,30 +1,22 @@
 import meshutil
-import visualdebug
 from meshutil import *
 
 class HeatmapOperator(bpy.types.Operator):
-    bl_idname = "object.heatmapop"
-    bl_label = "Heatmap"
+    bl_idname = "object.visualizematrices"
+    bl_label = "Visualize Matrices"
     bl_options = {'REGISTER', 'UNDO'}
 
-    def execute(self, context):
-        visualdebug.clear_debug_collection()
+    def embedding(self, bm):
+        vx = np.array([v.co.x for v in bm.verts])
+        vy = np.array([v.co.y for v in bm.verts])
+        vz = np.array([v.co.z for v in bm.verts])
 
-        # ensure single object is selected
-        if len(bpy.context.selected_objects) != 1:
-            self.report({'ERROR'}, "Select a single object to deform")
-            return {'CANCELLED'}
+        return vx, vy, vz
 
-        obj = bpy.context.selected_objects[0]
-        mesh = obj.data
-        bm = bmesh.new()
-        bm.from_mesh(mesh)
-
+    def save_embedding_gradients(self, obj, bm):
         gradient_matrix = meshutil.compute_gradient_matrix(bm)
 
-        vx = [v.co.x for v in bm.verts]
-        vy = [v.co.y for v in bm.verts]
-        vz = [v.co.z for v in bm.verts]
+        vx, vy, vz = self.embedding(bm)
 
         grads_x = (gradient_matrix @ vx).reshape(-1, 3)
         grads_y = (gradient_matrix @ vy).reshape(-1, 3)
@@ -35,14 +27,36 @@ class HeatmapOperator(bpy.types.Operator):
         set_float_vertex_attrib(obj, 'vy', np.array(vy))
         set_float_vertex_attrib(obj, 'vz', np.array(vz))
 
-        # save gradients for each embedding to attributes
-        set_float_face_attrib(obj, 'grad_magnitude_vx', np.linalg.norm(grads_x, axis=1))
-        set_float_face_attrib(obj, 'grad_magnitude_vy', np.linalg.norm(grads_y, axis=1))
-        set_float_face_attrib(obj, 'grad_magnitude_vz', np.linalg.norm(grads_z, axis=1))
-
         # save actual gradients as attributes
         set_vector_face_attrib(obj, 'grad_vx', [Vector(grad) for grad in grads_x])
         set_vector_face_attrib(obj, 'grad_vy', grads_y)
         set_vector_face_attrib(obj, 'grad_vz', grads_z)
+
+    def save_mean_curvature(self, obj, bm):
+        vx, vy, vz = self.embedding(bm)
+
+        laplacian = mesh_laplacian(bm)
+
+        delta_x = laplacian @ vx.reshape(-1, 1)
+        delta_y = laplacian @ vy.reshape(-1, 1)
+        delta_z = laplacian @ vz.reshape(-1, 1)
+
+        set_vector_vertex_attrib(obj, 'delta', [Vector(delta) for delta in zip(delta_x, delta_y, delta_z)])
+        set_float_vertex_attrib(obj, 'delta_normalized',
+                                np.array([Vector(delta).length for delta in zip(delta_x, delta_y, delta_z)]),
+                                normalize=True)
+
+    def execute(self, context):
+        # ensure single object is selected
+        if len(bpy.context.selected_objects) != 1:
+            self.report({'ERROR'}, "Select a single object to deform")
+            return {'CANCELLED'}
+
+        obj = bpy.context.selected_objects[0]
+        mesh = obj.data
+        bm = bmesh.new()
+        bm.from_mesh(mesh)
+
+        self.save_embedding_gradients(obj, bm)
 
         return {'FINISHED'}
