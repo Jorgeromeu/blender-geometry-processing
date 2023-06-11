@@ -162,6 +162,7 @@ cython_debug/
 *.blend1
 *.prof
 
+profile.prof
 start_blender.py
 evaluation
 animation

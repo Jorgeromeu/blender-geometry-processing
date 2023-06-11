@@ -211,4 +211,3 @@ class EvaluationOperator(bpy.types.Operator):
                     json.dump(experiment_results, fp)
 
         return {'FINISHED'}
-

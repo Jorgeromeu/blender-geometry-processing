@@ -1,8 +1,9 @@
+import re
+
 import bpy
 import numpy as np
 from bmesh.types import BMesh
-from mathutils import Matrix
-import re
+from mathutils import Matrix, Vector
 
 def get_selected_object(ctx: bpy.context) -> bpy.types.Object:
     return bpy.context.object
@@ -47,9 +48,46 @@ def rigid_transform(t: np.ndarray, r: np.ndarray, obj):
 def get_or_else(d: dict, key, other):
     return other if d.get(key) is None else d.get(key)
 
-def get_first_by_regex(d: dict, r: str):
+def get_first_by_regex(r: str, d=None):
+    if d is None:
+        d = bpy.data.objects
+
     for (k, v) in d.items():
         if re.match(r, k):
             return v
     return None
 
+def linear_map(data):
+    mn = min(data)
+    mx = max(data)
+    return (data - mn) / (mx - mn)
+
+def set_float_attrib(obj, name: str, domain: str, data: np.ndarray, normalize=True):
+    # if no attribute exists, make it
+    if not obj.data.attributes.get(name):
+        obj.data.attributes.new(name, type='FLOAT', domain=domain)
+
+    if normalize:
+        data = linear_map(data)
+
+    obj.data.attributes[name].data.foreach_set("value", data)
+
+def set_vector_attrib(obj, name: str, domain: str, vectors: np.ndarray):
+    # if no attribute exists, make it
+    if not obj.data.attributes.get(name):
+        obj.data.attributes.new(name, type='FLOAT_VECTOR', domain=domain)
+
+    for i, vector in enumerate(vectors):
+        obj.data.attributes[name].data[i].vector = Vector(vector)
+
+def set_vector_face_attrib(obj, name: str, vectors):
+    set_vector_attrib(obj, name, 'FACE', vectors)
+
+def set_vector_vertex_attrib(obj, name: str, vectors):
+    set_vector_attrib(obj, name, 'POINT', vectors)
+
+def set_float_vertex_attrib(obj, name: str, data: np.ndarray, normalize=True):
+    set_float_attrib(obj, name, 'POINT', data, normalize)
+
+def set_float_face_attrib(obj, name: str, data: np.ndarray, normalize=True):
+    set_float_attrib(obj, name, 'FACE', data, normalize)

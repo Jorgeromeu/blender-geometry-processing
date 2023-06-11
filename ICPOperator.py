@@ -79,7 +79,8 @@ class ICPOperator(bpy.types.Operator):
     nu: bpy.props.FloatProperty(name='nu', default=1, min=0.01)
 
     animate: bpy.props.BoolProperty('Animate', default=False, description='output animation as set of frames')
-    animation_dir: bpy.props.StringProperty('Animation dir', default='animation', description='relative path to animation directory')
+    animation_dir: bpy.props.StringProperty('Animation dir', default='animation',
+                                            description='relative path to animation directory')
 
     def draw(self, context):
         layout: bpy.types.UILayout = self.layout.grid_flow()
