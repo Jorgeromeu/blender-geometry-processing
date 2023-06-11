@@ -1,31 +1,25 @@
+import bpy.props
+import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from meshutil import *
 
-class BrushOperator(bpy.types.Operator):
-    bl_idname = "object.geobrush"
-    bl_label = "GDP Brush"
+
+class BumpBrushOperator(bpy.types.Operator):
+    bl_idname = "object.geobumpbrush"
+    bl_label = "GDP Bump Brush"
     bl_options = {'REGISTER', 'UNDO'}
 
-    scale_x: bpy.props.FloatProperty(name='Scale x', default=1, min=0, max=1000)
-    scale_y: bpy.props.FloatProperty(name='Scale y', default=1, min=0, max=1000)
-    scale_z: bpy.props.FloatProperty(name='Scale z', default=1, min=0, max=1000)
-
-    rx: bpy.props.IntProperty(name='Rotation x', default=0, min=0, max=359)
-    ry: bpy.props.IntProperty(name='Rotation y', default=0, min=0, max=359)
-    rz: bpy.props.IntProperty(name='Rotation z', default=0, min=0, max=359)
+    radius: bpy.props.FloatProperty(name="Radius", default=0.1, min=0)
+    slope_value: bpy.props.FloatProperty(name='Slope Value', default=0, min=-np.pi / 2, max=np.pi / 2)
 
     gradient_matrix: sp.csr_matrix
     cotangent_matrix: sp.linalg.splu
     gtmv: sp.csr_matrix
-
-    def matrix(self):
-        scale = (np.eye(3) * np.array([self.scale_x, self.scale_y, self.scale_z]))
-        rotation = R.from_euler('xyz', [self.rx, self.ry, self.rz], degrees=True).as_matrix()
-        return rotation @ scale
+    center: Vector
+    center_normal: Vector
 
     def invoke(self, context, event):
-
         obj = bpy.context.active_object
 
         # ensure in edit mode
@@ -35,6 +29,14 @@ class BrushOperator(bpy.types.Operator):
         # get editable mesh
         mesh = obj.data
         bm = bmesh.from_edit_mesh(mesh)
+
+        selected_vertices = [(v.index, v) for v in bm.verts if v.select]
+        if len(selected_vertices) > 1:
+            self.report({'ERROR'}, "Please select exactly one vertex.")
+        selected_vertex = selected_vertices[0]
+
+        self.center = selected_vertex[1].co
+        self.center_normal = selected_vertex[1].normal
 
         # compute gradient matrix
         self.gradient_matrix, self.cotangent_matrix, self.gtmv = compute_deformation_matrices(bm)
@@ -47,7 +49,6 @@ class BrushOperator(bpy.types.Operator):
         return self.execute(context)
 
     def execute(self, context):
-
         obj = bpy.context.active_object
 
         # ensure in edit mode
@@ -67,17 +68,36 @@ class BrushOperator(bpy.types.Operator):
         grads_z = (self.gradient_matrix @ vz).reshape(-1, 3)
 
         # selected faces
-        selected_faces_indices = [f.index for f in bm.faces if f.select]
+        selected_faces_indices = []
+        selected_faces = []
+        for face in bm.faces:
+            for vertex in face.verts:
+                if (vertex.co - self.center).length <= self.radius and vertex.normal.dot(self.center_normal) >= 0.9:
+                    selected_faces_indices.append(face.index)
+                    selected_faces.append(face)
+                    break
 
-        # select gradients
-        selected_grads_x = grads_x[selected_faces_indices]
-        selected_grads_y = grads_y[selected_faces_indices]
-        selected_grads_z = grads_z[selected_faces_indices]
+        # modify the selected gradients based on the bump
+        modified_selected_grads_x = grads_x[selected_faces_indices]
+        modified_selected_grads_y = grads_y[selected_faces_indices]
+        modified_selected_grads_z = grads_z[selected_faces_indices]
 
-        # modify the selected gradients with the matrix
-        modified_selected_grads_x = selected_grads_x @ self.matrix()
-        modified_selected_grads_y = selected_grads_y @ self.matrix()
-        modified_selected_grads_z = selected_grads_z @ self.matrix()
+        factor = np.pi / self.radius
+        for i in range(len(modified_selected_grads_x)):
+            face_centroid = centroid([v.co for v in selected_faces[i].verts])
+            point_difference = (self.center - face_centroid)
+            diff_length = point_difference.length
+            # Derive the rotation
+            rotation_angle = self.slope_value * np.sin(factor * diff_length)
+            rotation_axis = selected_faces[i].normal.cross(point_difference.normalized())
+            rotation_matrix = R.from_rotvec(rotation_angle * rotation_axis.normalized()).as_matrix()
+            # Derive the anisotropic scaling
+            scale_factor = 1 / np.cos(rotation_angle)
+            scale_matrix = np.eye(3) * [0, 0, 1]  # (point_difference / diff_length)
+            scale_matrix = scale_factor * scale_matrix
+            modified_selected_grads_x[i] = scale_matrix @ rotation_matrix @ modified_selected_grads_x[i]
+            modified_selected_grads_y[i] = scale_matrix @ rotation_matrix @ modified_selected_grads_y[i]
+            modified_selected_grads_z[i] = scale_matrix @ rotation_matrix @ modified_selected_grads_z[i]
 
         # get modified gradients
         modified_grads_x = grads_x
