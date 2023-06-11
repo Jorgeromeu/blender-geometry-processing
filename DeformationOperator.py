@@ -15,7 +15,6 @@ def solve_optimal_pos(og_delta: np.ndarray, laplacian, a: float,
         (len(og_delta), 1)) + a * constraint_matrix.transpose() @ constraint_rhs
 
     opt_v = sp.linalg.spsolve(matrix, rhs)
-    # opt_v = np.linalg.solve(matrix, rhs.flatten())
     return opt_v
 
 class ConstraintDeformationOp(bpy.types.Operator):

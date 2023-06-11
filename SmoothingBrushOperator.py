@@ -72,8 +72,6 @@ class SmoothLaplacianOp(bpy.types.Operator):
 
         elif bpy.context.mode == 'EDIT_MESH':
 
-            print('AA')
-
             # if in edit mode, only smooth the selected vertices
             bm = bmesh.from_edit_mesh(obj.data)
             selected_vertices = set([v for v in bm.verts if v.select])

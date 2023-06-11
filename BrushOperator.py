@@ -107,9 +107,8 @@ class AbstractBrushOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class BrushOperator(AbstractBrushOperator):
-    bl_idname = "object.geobrush"
-    bl_label = "GDP Brush"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_idname = "object.gradientbrush"
+    bl_label = "GDP Gradient Brush"
 
     scale_x: bpy.props.FloatProperty(name='Scale x', default=1, min=0, max=1000)
     scale_y: bpy.props.FloatProperty(name='Scale y', default=1, min=0, max=1000)
@@ -119,20 +118,14 @@ class BrushOperator(AbstractBrushOperator):
     ry: bpy.props.IntProperty(name='Rotation y', default=0, min=0, max=359)
     rz: bpy.props.IntProperty(name='Rotation z', default=0, min=0, max=359)
 
-    # bm: BMesh
-    gradient_matrix: sp.csr_matrix
-    cotangent_matrix: sp.linalg.splu
-    gtmv: sp.csr_matrix
-
     def matrix(self):
         scale = (np.eye(3) * np.array([self.scale_x, self.scale_y, self.scale_z]))
         rotation = R.from_euler('xyz', [self.rx, self.ry, self.rz], degrees=True).as_matrix()
         return rotation @ scale
 
 class MatrixBrushOperator(AbstractBrushOperator):
-    bl_idname = "object.matrixgeobrush"
-    bl_label = "GDP Matrix Brush"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_idname = "object.matrixgradientbrush"
+    bl_label = "GDP Gradient Brush (Matrix Input)"
 
     val_11: bpy.props.FloatProperty(default=1)
     val_12: bpy.props.FloatProperty(default=0)
