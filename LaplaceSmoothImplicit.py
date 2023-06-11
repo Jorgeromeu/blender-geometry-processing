@@ -26,7 +26,7 @@ class LaplaceSmoothImplicitOperator(bpy.types.Operator):
             vx, vy, vz = to_vxvyvz(bm, dims=[0, 1, 2])
 
             # solve linear system
-            lhs = np.eye(len(vx)) + self.step_size + laplacian
+            lhs = np.eye(len(vx)) + self.step_size * laplacian
             vx1 = np.linalg.solve(lhs, vx)
             vy1 = np.linalg.solve(lhs, vy)
             vz1 = np.linalg.solve(lhs, vz)

@@ -34,20 +34,35 @@ class IterativeSmoothingBrushOperator(bpy.types.Operator):
         selected_vertex_indices = set([v.index for v in bm.verts if v.select])
         if self.smoothing_method == "ITERATED_AVERAGING":
             vx, vy, vz = laplace_smoothing(bm, self.n_iters, self.step_size)
+            # set vertex coordinates
+            for v_i, v in enumerate(bm.verts):
+                if v_i in selected_vertex_indices:
+                    v.co.x = vx[v_i]
+                    v.co.y = vy[v_i]
+                    v.co.z = vz[v_i]
+        elif self.smoothing_method == "IMPLICIT_EULER":
+            for _ in range(self.n_iters):
+                laplacian = mesh_laplacian(bm)
+                vx, vy, vz = to_vxvyvz(bm, dims=[0, 1, 2])
 
-        # set vertex coordinates
-        for v_i, v in enumerate(bm.verts):
-            if v_i in selected_vertex_indices:
-                v.co.x = vx[v_i]
-                v.co.y = vy[v_i]
-                v.co.z = vz[v_i]
+                # solve linear system
+                lhs = np.eye(len(vx)) + self.step_size * laplacian
+                vx1 = np.linalg.solve(lhs, vx)
+                vy1 = np.linalg.solve(lhs, vy)
+                vz1 = np.linalg.solve(lhs, vz)
+
+                # set vertex coordinates
+                for v_i, v in enumerate(bm.verts):
+                    if v_i in selected_vertex_indices:
+                        v.co.x = vx1[v_i]
+                        v.co.y = vy1[v_i]
+                        v.co.z = vz1[v_i]
 
         return {'FINISHED'}
 
     def draw(self, context):
         layout: bpy.types.UILayout = self.layout.grid_flow()
         col = layout.column()
+        col.prop(self, 'n_iters')
+        col.prop(self, 'step_size')
         col.prop(self, 'smoothing_method')
-        if self.smoothing_method == "ITERATED_AVERAGING":
-            col.prop(self, 'n_iters')
-            col.prop(self, 'step_size')
