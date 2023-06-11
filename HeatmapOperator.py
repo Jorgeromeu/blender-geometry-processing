@@ -32,7 +32,7 @@ class HeatmapOperator(bpy.types.Operator):
         set_vector_face_attrib(obj, 'grad_vy', grads_y)
         set_vector_face_attrib(obj, 'grad_vz', grads_z)
 
-    def save_mean_curvature(self, obj, bm):
+    def save_laplace_coords(self, obj, bm):
         vx, vy, vz = self.embedding(bm)
 
         laplacian = mesh_laplacian(bm)
@@ -43,6 +43,20 @@ class HeatmapOperator(bpy.types.Operator):
 
         set_vector_vertex_attrib(obj, 'delta', [Vector(delta) for delta in zip(delta_x, delta_y, delta_z)])
         set_float_vertex_attrib(obj, 'delta_normalized',
+                                np.array([Vector(delta).length for delta in zip(delta_x, delta_y, delta_z)]),
+                                normalize=True)
+
+    def save_cotangent_coords(self, obj, bm):
+        vx, vy, vz = self.embedding(bm)
+
+        cotangent = compute_cotangent_matrix(bm)
+
+        delta_x = cotangent @ vx.reshape(-1, 1)
+        delta_y = cotangent @ vy.reshape(-1, 1)
+        delta_z = cotangent @ vz.reshape(-1, 1)
+
+        set_vector_vertex_attrib(obj, 'delta_cotan', [Vector(delta) for delta in zip(delta_x, delta_y, delta_z)])
+        set_float_vertex_attrib(obj, 'delta_cotan_normalized',
                                 np.array([Vector(delta).length for delta in zip(delta_x, delta_y, delta_z)]),
                                 normalize=True)
 
@@ -57,6 +71,8 @@ class HeatmapOperator(bpy.types.Operator):
         bm = bmesh.new()
         bm.from_mesh(mesh)
 
-        self.save_embedding_gradients(obj, bm)
+        # self.save_embedding_gradients(obj, bm)
+        self.save_laplace_coords(obj, bm)
+        self.save_cotangent_coords(obj, bm)
 
         return {'FINISHED'}

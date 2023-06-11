@@ -6,7 +6,7 @@ class LaplaceSmoothOperator(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     n_iters: bpy.props.IntProperty('Num Iterations', default=1, min=0, max=10)
-    step_size: bpy.props.FloatProperty('Step Size', default=0.1, min=0, max=1)
+    step_size: bpy.props.FloatProperty('Step Size', default=0.3, min=0, max=1)
 
     def execute(self, context):
         # ensure single object is selected
@@ -39,3 +39,9 @@ class LaplaceSmoothOperator(bpy.types.Operator):
             v.co.z = vz[v_i]
 
         return {'FINISHED'}
+
+    def draw(self, context):
+        layout = self.layout.grid_flow()
+        row = layout.row()
+        row.prop(self, "n_iters")
+        row.prop(self, "step_size", text='')

@@ -130,23 +130,9 @@ class DeformationOp(bpy.types.Operator):
         # parse the constraints
         constraints = self.parse_constraints(obj)
 
-        # for c in constraints:
-        #     print(c)
-
-        # get editable mesh
         bpy.ops.object.mode_set(mode='EDIT')
         bm = bmesh.from_edit_mesh(obj.data)
 
-        # centroid_pre = centroid([v.co for v in bm.verts])
-
         self.deform_mesh(bm, constraints)
-
-        # centroid_post = centroid([v.co for v in bm.verts])
-
-        # diff = centroid_post - centroid_pre
-        #
-        # if self.preserve_centroid:
-        #     for v in bm.verts:
-        #         v.co -= diff
 
         return {'FINISHED'}
