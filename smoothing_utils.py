@@ -4,8 +4,8 @@ from bmesh.types import BMesh
 
 from meshutil import mesh_laplacian, to_vxvyvz
 
-def iterative_laplace_smoothing(bm: BMesh, n_iters: int, step_size: float, laplacian=None) -> (np.ndarray, np.ndarray, np.ndarray):
-
+def iterative_laplace_smoothing(bm: BMesh, n_iters: int, step_size: float, laplacian=None) -> (
+np.ndarray, np.ndarray, np.ndarray):
     if laplacian is None:
         laplacian = mesh_laplacian(bm)
 
@@ -23,6 +23,9 @@ def iterative_laplace_smoothing(bm: BMesh, n_iters: int, step_size: float, lapla
     return vx, vy, vz
 
 def implicit_laplace_smoothing(bm: BMesh, n_iters: int, step_size: float):
+
+    if n_iters == 0:
+        return to_vxvyvz(bm, dims=[0, 1, 2])
 
     for _ in range(n_iters):
         laplacian = mesh_laplacian(bm)

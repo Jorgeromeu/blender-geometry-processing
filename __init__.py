@@ -9,9 +9,7 @@ from .ComputeGenus import *
 from .ConnectedComponentsOp import *
 from .DeformationOperator import *
 from .ICPOperator import *
-from .LaplaceSmooth import LaplaceSmoothOperator
-from .LaplaceSmoothImplicit import *
-from .SmoothingBrushOperator import SmoothingBrushOp
+from .SmoothingBrushOperator import SmoothLaplacianOp
 from .VolumeOperator import *
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "scipy"])
@@ -38,7 +36,7 @@ classes = [
     BrushOperator, MatrixBrushOperator,
 
     # Laplacian smoothing
-    LaplaceSmoothOperator, LaplaceSmoothImplicitOperator, SmoothingBrushOp,
+    SmoothLaplacianOp,
 
     # For testing
     ComputeDifferentialCoordsOp, NumericalTestOp,
@@ -58,12 +56,11 @@ def register():
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(LaplaceSmoothOperator.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(ConstraintDeformationOp.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(NumericalTestOp.bl_idname))
-    bpy.types.VIEW3D_MT_object.append(
-        lambda self, context: self.layout.operator(LaplaceSmoothImplicitOperator.bl_idname))
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(SmoothLaplacianOp.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(BrushOperator.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(MatrixBrushOperator.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(BrushOperator.bl_idname))
-    bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(SmoothingBrushOp.bl_idname))
+    bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(SmoothLaplacianOp.bl_idname))
 
 def unregister():
     print('gdp-addon unregistered')

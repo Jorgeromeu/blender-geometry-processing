@@ -1,9 +1,9 @@
 from meshutil import *
 from smoothing_utils import iterative_laplace_smoothing, implicit_laplace_smoothing
 
-class SmoothingBrushOp(bpy.types.Operator):
-    bl_idname = "object.iterativesmoothbrush"
-    bl_label = "GDP Smoothing Brush"
+class SmoothLaplacianOp(bpy.types.Operator):
+    bl_idname = "object.smoothlaplacianop"
+    bl_label = "GDP Smooth Laplacian"
     bl_options = {'REGISTER', 'UNDO'}
 
     smoothing_method: bpy.props.EnumProperty(
@@ -33,20 +33,15 @@ class SmoothingBrushOp(bpy.types.Operator):
 
         return self.execute(context)
 
-    def execute(self, context):
+    def perform_smoothing(self, obj, bm):
 
-        # ensure single object is selected
-        obj = bpy.context.selected_objects[0]
-
-        # get editable mesh
-        bpy.ops.object.mode_set(mode='EDIT')
-        bm = bmesh.from_edit_mesh(obj.data)
-
-        # get selected verts
-        selected_vertices = set([v for v in bm.verts if v.select])
+        """
+        Smooth the mesh, depending on the selected method
+        """
 
         if self.smoothing_method == "ITERATED_AVERAGING":
             vx, vy, vz = iterative_laplace_smoothing(bm, self.n_iters, self.step_size, self.laplacian)
+            return vx, vy, vz
 
         elif self.smoothing_method == "IMPLICIT_EULER":
 
@@ -54,12 +49,42 @@ class SmoothingBrushOp(bpy.types.Operator):
             bm_copy.from_mesh(obj.data)
             vx, vy, vz = implicit_laplace_smoothing(bm_copy, self.n_iters, self.step_size)
             bm_copy.free()
+            return vx, vy, vz
 
-        # only affect selected vertices
-        for v in selected_vertices:
-            v.co.x = vx[v.index]
-            v.co.y = vy[v.index]
-            v.co.z = vz[v.index]
+    def execute(self, context):
+
+        obj = bpy.context.selected_objects[0]
+
+        if bpy.context.mode == 'OBJECT':
+
+            bm = bmesh.new()
+            bm.from_mesh(obj.data)
+
+            vx, vy, vz = self.perform_smoothing(obj, bm)
+
+            for v in bm.verts:
+                v.co.x = vx[v.index]
+                v.co.y = vy[v.index]
+                v.co.z = vz[v.index]
+
+            bm.to_mesh(obj.data)
+            bm.free()
+
+        elif bpy.context.mode == 'EDIT_MESH':
+
+            print('AA')
+
+            # if in edit mode, only smooth the selected vertices
+            bm = bmesh.from_edit_mesh(obj.data)
+            selected_vertices = set([v for v in bm.verts if v.select])
+
+            vx, vy, vz = self.perform_smoothing(obj, bm)
+
+            # only affect selected vertices
+            for v in selected_vertices:
+                v.co.x = vx[v.index]
+                v.co.y = vy[v.index]
+                v.co.z = vz[v.index]
 
         return {'FINISHED'}
 
