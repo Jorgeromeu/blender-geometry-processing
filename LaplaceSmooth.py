@@ -1,4 +1,6 @@
 from meshutil import *
+from smoothing_utils import laplace_smoothing
+
 
 class LaplaceSmoothOperator(bpy.types.Operator):
     bl_idname = "object.laplacesmoothop"
@@ -19,18 +21,7 @@ class LaplaceSmoothOperator(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='EDIT')
         bm = bmesh.from_edit_mesh(obj.data)
 
-        laplacian = mesh_laplacian(bm)
-
-        vx, vy, vz = to_vxvyvz(bm, dims=[0, 1, 2])
-
-        for _ in range(self.n_iters):
-            delta_x = laplacian @ vx
-            delta_y = laplacian @ vy
-            delta_z = laplacian @ vz
-
-            vx -= self.step_size * delta_x
-            vy -= self.step_size * delta_y
-            vz -= self.step_size * delta_z
+        vx, vy, vz = laplace_smoothing(bm, self.n_iters, self.step_size)
 
         # set vertex coordinates
         for v_i, v in enumerate(bm.verts):

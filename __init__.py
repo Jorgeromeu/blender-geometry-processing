@@ -11,6 +11,7 @@ from .HeatmapOperator import *
 from .ICPOperator import *
 from .LaplaceSmooth import LaplaceSmoothOperator
 from .LaplacianBrushOperator import LaplacianBrushOperator
+from .SmoothingBrushOperator import IterativeSmoothingBrushOperator
 from .VolumeOperator import *
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "scipy"])
@@ -30,7 +31,8 @@ classes = [ComputeGenus, ConnectedComponentsOp, VolumeOperator,
            BoundaryLoopsOp, ICPOperator, DeformationOp,
            TranslateVertexOperator, DifferentialCoordinatesOp,
            HeatmapOperator, BrushOperator, LaplacianBrushOperator,
-           LaplaceSmoothOperator, MatrixBrushOperator]
+           LaplaceSmoothOperator, MatrixBrushOperator, IterativeSmoothingBrushOperator]
+
 
 def register():
     print('gdp-addon registered')
@@ -51,6 +53,9 @@ def register():
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(MatrixBrushOperator.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(BrushOperator.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(LaplacianBrushOperator.bl_idname))
+    bpy.types.VIEW3D_MT_edit_mesh.append(
+        lambda self, context: self.layout.operator(IterativeSmoothingBrushOperator.bl_idname))
+
 
 def unregister():
     print('gdp-addon unregistered')
