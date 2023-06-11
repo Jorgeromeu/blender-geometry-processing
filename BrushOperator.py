@@ -2,28 +2,13 @@ from scipy.spatial.transform import Rotation as R
 
 from meshutil import *
 
-class BrushOperator(bpy.types.Operator):
-    bl_idname = "object.geobrush"
-    bl_label = "GDP Brush"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    scale_x: bpy.props.FloatProperty(name='Scale x', default=1, min=0, max=1000)
-    scale_y: bpy.props.FloatProperty(name='Scale y', default=1, min=0, max=1000)
-    scale_z: bpy.props.FloatProperty(name='Scale z', default=1, min=0, max=1000)
-
-    rx: bpy.props.IntProperty(name='Rotation x', default=0, min=0, max=359)
-    ry: bpy.props.IntProperty(name='Rotation y', default=0, min=0, max=359)
-    rz: bpy.props.IntProperty(name='Rotation z', default=0, min=0, max=359)
-
-    # bm: BMesh
+class AbstractBrushOperator(bpy.types.Operator):
     gradient_matrix: sp.csr_matrix
     cotangent_matrix: sp.linalg.splu
     gtmv: sp.csr_matrix
 
-    def matrix(self):
-        scale = (np.eye(3) * np.array([self.scale_x, self.scale_y, self.scale_z]))
-        rotation = R.from_euler('xyz', [self.rx, self.ry, self.rz], degrees=True).as_matrix()
-        return rotation @ scale
+    def matrix(self) -> np.ndarray:
+        np.eye(3)
 
     def invoke(self, context, event):
 
@@ -120,3 +105,63 @@ class BrushOperator(bpy.types.Operator):
         bm.free()
 
         return {'FINISHED'}
+
+class BrushOperator(AbstractBrushOperator):
+    bl_idname = "object.geobrush"
+    bl_label = "GDP Brush"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    scale_x: bpy.props.FloatProperty(name='Scale x', default=1, min=0, max=1000)
+    scale_y: bpy.props.FloatProperty(name='Scale y', default=1, min=0, max=1000)
+    scale_z: bpy.props.FloatProperty(name='Scale z', default=1, min=0, max=1000)
+
+    rx: bpy.props.IntProperty(name='Rotation x', default=0, min=0, max=359)
+    ry: bpy.props.IntProperty(name='Rotation y', default=0, min=0, max=359)
+    rz: bpy.props.IntProperty(name='Rotation z', default=0, min=0, max=359)
+
+    # bm: BMesh
+    gradient_matrix: sp.csr_matrix
+    cotangent_matrix: sp.linalg.splu
+    gtmv: sp.csr_matrix
+
+    def matrix(self):
+        scale = (np.eye(3) * np.array([self.scale_x, self.scale_y, self.scale_z]))
+        rotation = R.from_euler('xyz', [self.rx, self.ry, self.rz], degrees=True).as_matrix()
+        return rotation @ scale
+
+class MatrixBrushOperator(AbstractBrushOperator):
+    bl_idname = "object.matrixgeobrush"
+    bl_label = "GDP Matrix Brush"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    val_11: bpy.props.FloatProperty(default=1)
+    val_12: bpy.props.FloatProperty(default=0)
+    val_13: bpy.props.FloatProperty(default=0)
+    val_21: bpy.props.FloatProperty(default=0)
+    val_22: bpy.props.FloatProperty(default=1)
+    val_23: bpy.props.FloatProperty(default=0)
+    val_31: bpy.props.FloatProperty(default=0)
+    val_32: bpy.props.FloatProperty(default=0)
+    val_33: bpy.props.FloatProperty(default=1)
+
+    def matrix(self):
+        return np.array([
+            [self.val_11, self.val_12, self.val_13],
+            [self.val_21, self.val_22, self.val_23],
+            [self.val_31, self.val_32, self.val_33],
+        ])
+
+    def draw(self, context):
+        layout = self.layout.grid_flow()
+        row = layout.row()
+        row.prop(self, "val_11", text='')
+        row.prop(self, "val_12", text='')
+        row.prop(self, "val_12", text='')
+        row = layout.row()
+        row.prop(self, "val_21", text='')
+        row.prop(self, "val_22", text='')
+        row.prop(self, "val_22", text='')
+        row = layout.row()
+        row.prop(self, "val_31", text='')
+        row.prop(self, "val_32", text='')
+        row.prop(self, "val_32", text='')
