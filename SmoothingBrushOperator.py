@@ -1,12 +1,7 @@
-import numpy as np
-from scipy.spatial.transform import Rotation as R
-
-import visualdebug
 from meshutil import *
-from smoothing_utils import laplace_smoothing
+from smoothing_utils import iterative_laplace_smoothing, implicit_laplace_smoothing
 
-
-class IterativeSmoothingBrushOperator(bpy.types.Operator):
+class SmoothingBrushOp(bpy.types.Operator):
     bl_idname = "object.iterativesmoothbrush"
     bl_label = "GDP Smoothing Brush"
     bl_options = {'REGISTER', 'UNDO'}
@@ -20,10 +15,26 @@ class IterativeSmoothingBrushOperator(bpy.types.Operator):
         ]
     )
 
-    n_iters: bpy.props.IntProperty(name='Number of Iterations', default=1, min=0, max=10)
-    step_size: bpy.props.FloatProperty(name='Step Size', default=0.1, min=0, max=1)
+    n_iters: bpy.props.IntProperty(name='Number of Iterations', default=1, min=0, max=500)
+    step_size: bpy.props.FloatProperty(name='Step Size', default=0.1, min=0, max=10000)
+
+    laplacian: sp.csr_matrix
+
+    def invoke(self, context, event):
+
+        # ensure single object is selected
+        obj = bpy.context.selected_objects[0]
+
+        # compute laplacian before executing
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        self.laplacian = mesh_laplacian(bm)
+        bm.free()
+
+        return self.execute(context)
 
     def execute(self, context):
+
         # ensure single object is selected
         obj = bpy.context.selected_objects[0]
 
@@ -31,32 +42,24 @@ class IterativeSmoothingBrushOperator(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='EDIT')
         bm = bmesh.from_edit_mesh(obj.data)
 
-        selected_vertex_indices = set([v.index for v in bm.verts if v.select])
+        # get selected verts
+        selected_vertices = set([v for v in bm.verts if v.select])
+
         if self.smoothing_method == "ITERATED_AVERAGING":
-            vx, vy, vz = laplace_smoothing(bm, self.n_iters, self.step_size)
-            # set vertex coordinates
-            for v_i, v in enumerate(bm.verts):
-                if v_i in selected_vertex_indices:
-                    v.co.x = vx[v_i]
-                    v.co.y = vy[v_i]
-                    v.co.z = vz[v_i]
+            vx, vy, vz = iterative_laplace_smoothing(bm, self.n_iters, self.step_size, self.laplacian)
+
         elif self.smoothing_method == "IMPLICIT_EULER":
-            for _ in range(self.n_iters):
-                laplacian = mesh_laplacian(bm)
-                vx, vy, vz = to_vxvyvz(bm, dims=[0, 1, 2])
 
-                # solve linear system
-                lhs = np.eye(len(vx)) + self.step_size * laplacian
-                vx1 = np.linalg.solve(lhs, vx)
-                vy1 = np.linalg.solve(lhs, vy)
-                vz1 = np.linalg.solve(lhs, vz)
+            bm_copy = bmesh.new()
+            bm_copy.from_mesh(obj.data)
+            vx, vy, vz = implicit_laplace_smoothing(bm_copy, self.n_iters, self.step_size)
+            bm_copy.free()
 
-                # set vertex coordinates
-                for v_i, v in enumerate(bm.verts):
-                    if v_i in selected_vertex_indices:
-                        v.co.x = vx1[v_i]
-                        v.co.y = vy1[v_i]
-                        v.co.z = vz1[v_i]
+        # only affect selected vertices
+        for v in selected_vertices:
+            v.co.x = vx[v.index]
+            v.co.y = vy[v.index]
+            v.co.z = vz[v.index]
 
         return {'FINISHED'}
 

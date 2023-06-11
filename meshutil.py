@@ -178,7 +178,6 @@ def compute_laplace_coords(bm: BMesh) -> dict[int, Vector]:
 
     return laplace_coords
 
-
 def mesh_laplacian(mesh: BMesh) -> np.ndarray:
     n = len(mesh.verts)
     D = sp.lil_array((n, n))

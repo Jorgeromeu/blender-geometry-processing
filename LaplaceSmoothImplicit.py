@@ -1,6 +1,5 @@
 from meshutil import *
-import numpy as np
-
+from smoothing_utils import *
 
 class LaplaceSmoothImplicitOperator(bpy.types.Operator):
     bl_idname = "object.laplacesmoothimplicitop"
@@ -21,20 +20,6 @@ class LaplaceSmoothImplicitOperator(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='EDIT')
         bm = bmesh.from_edit_mesh(obj.data)
 
-        for _ in range(self.n_iters):
-            laplacian = mesh_laplacian(bm)
-            vx, vy, vz = to_vxvyvz(bm, dims=[0, 1, 2])
-
-            # solve linear system
-            lhs = np.eye(len(vx)) + self.step_size * laplacian
-            vx1 = np.linalg.solve(lhs, vx)
-            vy1 = np.linalg.solve(lhs, vy)
-            vz1 = np.linalg.solve(lhs, vz)
-
-            # set vertex coordinates
-            for v_i, v in enumerate(bm.verts):
-                v.co.x = vx1[v_i]
-                v.co.y = vy1[v_i]
-                v.co.z = vz1[v_i]
+        implicit_laplace_smoothing(bm, self.n_iters, self.step_size)
 
         return {'FINISHED'}

@@ -1,12 +1,10 @@
-import cProfile
-import pstats
-
 import bpy.props
 
 from .meshutil import *
 
-def optimal_v(og_delta: np.ndarray, laplacian, a: float,
-              constraint_matrix: np.ndarray, constraint_rhs: np.ndarray) -> np.ndarray:
+def solve_optimal_pos(og_delta: np.ndarray, laplacian, a: float,
+                      constraint_matrix: np.ndarray,
+                      constraint_rhs: np.ndarray) -> np.ndarray:
     """
     Compute transformation that minimizes weighted sum of Laplacian energy and constraint energy
     """
@@ -20,14 +18,14 @@ def optimal_v(og_delta: np.ndarray, laplacian, a: float,
     # opt_v = np.linalg.solve(matrix, rhs.flatten())
     return opt_v
 
-class DeformationOp(bpy.types.Operator):
-    bl_idname = "object.implicitdeform"
+class ConstraintDeformationOp(bpy.types.Operator):
+    bl_idname = "object.laplaciandeform"
     bl_label = "GDP deformation"
     bl_options = {'REGISTER', 'UNDO'}
 
     constraint_weight: bpy.props.FloatProperty(name='Lambda', default=0.9, min=0, max=1)
 
-    preserve_centroid: bpy.props.BoolProperty(name='Preserve Centroid', default=True)
+    preserve_centroid: bpy.props.BoolProperty(name='Preserve Centroid', default=False)
 
     matrix_cache = {}
 
@@ -52,32 +50,28 @@ class DeformationOp(bpy.types.Operator):
 
         return res
 
-    def construct_constraint_system(self, dim_idx, og_vs) -> (np.ndarray, np.ndarray):
-
-        num_verts = len(og_vs)
+    def construct_constraint_system(self, dim_constraints, og_positions):
+        num_verts = len(og_positions)
 
         # create a constraint for each handle
-        constraint_matrix = sp.lil_array((len(self.handles), num_verts))
-        constraint_rhs = sp.lil_array((len(self.handles), 1))
+        constraint_matrix = sp.lil_array((len(dim_constraints), num_verts))
+        constraint_rhs = sp.lil_array((len(dim_constraints), 1))
 
-        for i, (vertex_index, desired_pos_object) in enumerate(self.handles):
-            desired_pos = get_first_by_regex(desired_pos_object).location
+        for constraint_i, (vert_index, pos) in enumerate(dim_constraints):
+            constraint_matrix[constraint_i, vert_index] = 1
+            constraint_rhs[constraint_i] = pos
 
-            constraint_matrix[i, vertex_index] = 1
-            constraint_rhs[i] = desired_pos[self._dims()[dim_idx]]
+        # if self.preserve_centroid:
+        #     constraint_matrix_centroid = np.ones((1, num_verts)) / num_verts
+        #     constraint_rhs_centroid = np.array([np.average(og_positions)]).reshape(1, 1)
+        #
+        #     constraint_matrix = sp.vstack([constraint_matrix, constraint_matrix_centroid])
+        #     constraint_rhs = sp.vstack([constraint_rhs, constraint_rhs_centroid])
 
-        # add a constraint to preserve centroid
-        if self.preserve_centroid:
-            constraint_matrix_centroid = np.ones((1, num_verts)) / num_verts
-            constraint_rhs_centroid = np.array([np.average(og_vs)]).reshape(1, 1)
+        return constraint_matrix, constraint_rhs
 
-            constraint_matrix = sp.vstack([constraint_matrix, constraint_matrix_centroid])
-            constraint_rhs = sp.vstack([constraint_rhs, constraint_rhs_centroid])
+    def deform_mesh(self, mesh: BMesh, constraints):
 
-        return constraint_matrix.tocsc(), constraint_rhs
-
-    def deform_mesh(self, mesh: BMesh):
-        # Compute laplacian of mesh
         laplacian = mesh_laplacian(mesh)
 
         # get original vertex positions and laplacian coordinates of the mesh
@@ -87,64 +81,58 @@ class DeformationOp(bpy.types.Operator):
         # for each dimension, minimize weighted sum of constraint energy and deformation energy
         opt_vs = og_vs
         for d_i, d in enumerate(self._dims()):
-            constraint_matrix, constraint_rhs = self.construct_constraint_system(d_i, og_vs[d_i])
-            opt_vd = optimal_v(og_deltas[d_i], laplacian, self.constraint_weight, constraint_matrix, constraint_rhs)
+
+            constraint_matrix, constraint_rhs = self.construct_constraint_system(constraints[d], og_vs[d])
+
+            if d == 2:
+                print(constraint_matrix)
+
+            opt_vd = solve_optimal_pos(og_deltas[d_i], laplacian, self.constraint_weight, constraint_matrix,
+                                       constraint_rhs)
             opt_vs[d_i] = opt_vd
 
         # set vertices to updated vertex positions
         set_vs(mesh, opt_vs, self._dims())
 
-    def execute(self, context):
+    def parse_constraints(self, obj):
 
+        constraints = [[] for _ in range(3)]
+        axis_mapping = {'x': 0, 'y': 1, 'z': 2}
+
+        vertex_groups = obj.vertex_groups
+        for group in vertex_groups:
+            group_vs = [v.index for v in obj.data.vertices if group.index in [vg.group for vg in v.groups]]
+
+            axis, object_name = group.name.split('-')
+            target_pos_ob = get_first_by_regex(object_name)
+
+            if target_pos_ob == None:
+                self.report({'ERROR'}, f'No object called {object_name}')
+                continue
+
+            target_pos = target_pos_ob.location
+            affected_axis = [axis_mapping[c] for c in axis]
+
+            for ax in affected_axis:
+
+                for v in group_vs:
+                    constraints[ax].append((v, target_pos[ax]))
+
+        return constraints
+
+    def execute(self, context):
         # ensure single object is selected
         if len(bpy.context.selected_objects) != 1:
             self.report({'ERROR'}, "Select a single object to deform")
             return {'CANCELLED'}
         obj = bpy.context.selected_objects[0]
 
-        triangulate_object(obj)
+        # parse the constraints
+        constraints = self.parse_constraints(obj)
 
-        if obj not in self.__class__.matrix_cache:
-            print("Matrix cache miss - building and factorizing")
-            mesh = mesh_from_object(obj)
-            # Get the gradient, cotangent matrix G^TM_vG and the partial rhs G^TM_v and cache them.
-            gradient, cotangent, gtmv = compute_deformation_matrices(mesh)
-            self.__class__.matrix_cache[obj] = (sp.linalg.splu(cotangent), gtmv)
-
-        contangent_matrix = self.__class__.matrix_cache[obj][0]
-        partial_rhs = self.__class__.matrix_cache[obj][1]
-
-        # TODO: SOMETHING AFTER THIS POINT IS VERY SLOW
-
-        # read handles
-        self.handles = []
-        vertex_groups = obj.vertex_groups
-        for group in vertex_groups:
-            vs = [v.index for v in obj.data.vertices if group.index in [vg.group for vg in v.groups]]
-            self.handles.append((vs[0], group.name))
-
-        # get editable mesh
         bpy.ops.object.mode_set(mode='EDIT')
-        mesh = bmesh.from_edit_mesh(obj.data)
+        bm = bmesh.from_edit_mesh(obj.data)
 
-        with cProfile.Profile() as pr:
-            self.deform_mesh(mesh)
-
-        stats = pstats.Stats(pr)
-        stats.sort_stats(pstats.SortKey.TIME)
-        stats.dump_stats(filename='profile.prof')
+        self.deform_mesh(bm, constraints)
 
         return {'FINISHED'}
-
-class TranslateVertexOperator(bpy.types.Operator):
-    bl_idname = "object.translate_vertex"
-    bl_label = "Translate Vertex"
-
-    def modal(self, context, event):
-        pass
-
-    def invoke(self, context, event):
-        pass
-
-    def execute(self, context):
-        pass
