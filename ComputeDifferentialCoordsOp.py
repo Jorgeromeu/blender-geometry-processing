@@ -6,9 +6,9 @@ class ComputeDifferentialCoordsOp(bpy.types.Operator):
     bl_label = "Compute Differential Coordinates"
     bl_options = {'REGISTER', 'UNDO'}
 
-    compute_gradients: bpy.props.BoolProperty('Compute Gradients of embeddings', default=False)
-    compute_laplace: bpy.props.BoolProperty('Compute Laplace Coordinates', default=False)
-    compute_cotangent: bpy.props.BoolProperty('Compute Cotangent Coordinates', default=False)
+    compute_gradients: bpy.props.BoolProperty(name='Compute Gradients of embeddings', default=False)
+    compute_laplace: bpy.props.BoolProperty(name='Compute Laplace Coordinates', default=False)
+    compute_cotangent: bpy.props.BoolProperty(name='Compute Cotangent Coordinates', default=False)
 
     def embedding(self, bm):
         vx = np.array([v.co.x for v in bm.verts])
@@ -85,3 +85,10 @@ class ComputeDifferentialCoordsOp(bpy.types.Operator):
             self.compute_cotangent_coords(obj, bm)
 
         return {'FINISHED'}
+
+    def draw(self, context):
+        layout = self.layout.grid_flow()
+        row = layout.row()
+        row.prop(self, "compute_gradients")
+        row.prop(self, "compute_laplace")
+        row.prop(self, "compute_cotangent")

@@ -11,6 +11,7 @@ from .DeformationOperator import *
 from .ICPOperator import *
 from .LaplaceSmooth import LaplaceSmoothOperator
 from .LaplaceSmoothImplicit import *
+from .SmoothingBrushOperator import SmoothingBrushOp
 from .VolumeOperator import *
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "scipy"])
@@ -37,7 +38,7 @@ classes = [
     BrushOperator, MatrixBrushOperator,
 
     # Laplacian smoothing
-    LaplaceSmoothOperator, LaplaceSmoothImplicitOperator,
+    LaplaceSmoothOperator, LaplaceSmoothImplicitOperator, SmoothingBrushOp,
 
     # For testing
     ComputeDifferentialCoordsOp, NumericalTestOp,
@@ -62,6 +63,7 @@ def register():
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(BrushOperator.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(MatrixBrushOperator.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(BrushOperator.bl_idname))
+    bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(SmoothingBrushOp.bl_idname))
 
 def unregister():
     print('gdp-addon unregistered')
