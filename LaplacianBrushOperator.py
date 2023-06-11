@@ -68,6 +68,7 @@ class LaplacianBrushOperator(bpy.types.Operator):
 
         # selected verts
         selected_verts_indices = [v.index for v in bm.verts if v.select]
+        selected_verts_set = set(selected_verts_indices)
         print(f"Selected indices: {len(selected_verts_indices)}")
 
         # select gradients
@@ -109,9 +110,10 @@ class LaplacianBrushOperator(bpy.types.Operator):
         new_vz = self.left_hand_side.solve(rhs_z)
 
         for v_i, v in enumerate(bm.verts):
-            v.co.x = new_vx[v_i]
-            v.co.y = new_vy[v_i]
-            v.co.z = new_vz[v_i]
+            if v_i in selected_verts_set:
+                v.co.x = new_vx[v_i]
+                v.co.y = new_vy[v_i]
+                v.co.z = new_vz[v_i]
 
         center_new = centroid([corner.co for corner in bm.verts])
 
