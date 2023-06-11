@@ -2,6 +2,7 @@ from meshutil import *
 from smoothing_utils import laplace_smoothing
 
 
+
 class LaplaceSmoothOperator(bpy.types.Operator):
     bl_idname = "object.laplacesmoothop"
     bl_label = "GDP Laplace Smooth"
