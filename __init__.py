@@ -12,6 +12,7 @@ from .ICPOperator import *
 from .LaplaceSmooth import LaplaceSmoothOperator
 from .LaplacianBrushOperator import LaplacianBrushOperator
 from .VolumeOperator import *
+from .LaplaceSmoothImplicit import LaplaceSmoothImplicitOperator
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "scipy"])
 
@@ -30,7 +31,8 @@ classes = [ComputeGenus, ConnectedComponentsOp, VolumeOperator,
            BoundaryLoopsOp, ICPOperator, DeformationOp,
            TranslateVertexOperator, DifferentialCoordinatesOp,
            HeatmapOperator, BrushOperator, LaplacianBrushOperator,
-           LaplaceSmoothOperator, MatrixBrushOperator]
+           LaplaceSmoothOperator, LaplaceSmoothImplicitOperator, MatrixBrushOperator]
+
 
 def register():
     print('gdp-addon registered')
@@ -47,10 +49,12 @@ def register():
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(DifferentialCoordinatesOp.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(HeatmapOperator.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(LaplaceSmoothOperator.bl_idname))
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(LaplaceSmoothImplicitOperator.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(BrushOperator.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(MatrixBrushOperator.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(BrushOperator.bl_idname))
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(LaplacianBrushOperator.bl_idname))
+
 
 def unregister():
     print('gdp-addon unregistered')
