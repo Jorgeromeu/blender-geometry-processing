@@ -1,10 +1,14 @@
 import meshutil
 from meshutil import *
 
-class HeatmapOperator(bpy.types.Operator):
-    bl_idname = "object.visualizematrices"
-    bl_label = "Visualize Matrices"
+class ComputeDifferentialCoordsOp(bpy.types.Operator):
+    bl_idname = "object.computecoords"
+    bl_label = "Compute Differential Coordinates"
     bl_options = {'REGISTER', 'UNDO'}
+
+    compute_gradients: bpy.props.BoolProperty('Compute Gradients of embeddings', default=False)
+    compute_laplace: bpy.props.BoolProperty('Compute Laplace Coordinates', default=False)
+    compute_cotangent: bpy.props.BoolProperty('Compute Cotangent Coordinates', default=False)
 
     def embedding(self, bm):
         vx = np.array([v.co.x for v in bm.verts])
@@ -13,7 +17,7 @@ class HeatmapOperator(bpy.types.Operator):
 
         return vx, vy, vz
 
-    def save_embedding_gradients(self, obj, bm):
+    def compute_embedding_gradients(self, obj, bm):
         gradient_matrix = meshutil.compute_gradient_matrix(bm)
 
         vx, vy, vz = self.embedding(bm)
@@ -32,7 +36,7 @@ class HeatmapOperator(bpy.types.Operator):
         set_vector_face_attrib(obj, 'grad_vy', grads_y)
         set_vector_face_attrib(obj, 'grad_vz', grads_z)
 
-    def save_laplace_coords(self, obj, bm):
+    def compute_laplace_coords(self, obj, bm):
         vx, vy, vz = self.embedding(bm)
 
         laplacian = mesh_laplacian(bm)
@@ -46,7 +50,7 @@ class HeatmapOperator(bpy.types.Operator):
                                 np.array([Vector(delta).length for delta in zip(delta_x, delta_y, delta_z)]),
                                 normalize=True)
 
-    def save_cotangent_coords(self, obj, bm):
+    def compute_cotangent_coords(self, obj, bm):
         vx, vy, vz = self.embedding(bm)
 
         cotangent = compute_cotangent_matrix(bm)
@@ -71,8 +75,13 @@ class HeatmapOperator(bpy.types.Operator):
         bm = bmesh.new()
         bm.from_mesh(mesh)
 
-        # self.save_embedding_gradients(obj, bm)
-        self.save_laplace_coords(obj, bm)
-        self.save_cotangent_coords(obj, bm)
+        if self.compute_gradients:
+            self.compute_embedding_gradients(obj, bm)
+
+        if self.compute_laplace:
+            self.compute_laplace_coords(obj, bm)
+
+        if self.compute_cotangent_coords:
+            self.compute_cotangent_coords(obj, bm)
 
         return {'FINISHED'}

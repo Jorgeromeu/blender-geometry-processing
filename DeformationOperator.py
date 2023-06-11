@@ -18,7 +18,7 @@ def solve_optimal_pos(og_delta: np.ndarray, laplacian, a: float,
     # opt_v = np.linalg.solve(matrix, rhs.flatten())
     return opt_v
 
-class DeformationOp(bpy.types.Operator):
+class ConstraintDeformationOp(bpy.types.Operator):
     bl_idname = "object.laplaciandeform"
     bl_label = "GDP deformation"
     bl_options = {'REGISTER', 'UNDO'}

@@ -1,5 +1,6 @@
 from meshutil import *
 
+
 class LaplaceSmoothOperator(bpy.types.Operator):
     bl_idname = "object.laplacesmoothop"
     bl_label = "GDP Laplace Smooth"
