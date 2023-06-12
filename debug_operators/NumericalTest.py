@@ -1,6 +1,8 @@
+import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from meshutil import *
+
 
 class NumericalTestOp(bpy.types.Operator):
     bl_idname = "object.numercaltest"
@@ -47,12 +49,35 @@ class NumericalTestOp(bpy.types.Operator):
         for i in range(len(vx)):
             assert (laplace_coords[i] - Vector((delta_x[i], delta_y[i], delta_z[i]))).length < 0.001
 
+    def calc_area(self, bm):
+        surface_area = 0
+        for face in bm.faces:
+            surface_area += face.calc_area()
+        return surface_area
+
+    def test_mass_vertices(self, bm):
+        mass = compute_vertex_mass_matrix(bm)
+        surface_area = self.calc_area(bm)
+        verts = len(bm.verts)
+        ones = np.ones(verts).reshape(verts, 1)
+        assert np.isclose(ones.T @ mass @ ones, surface_area)
+
+    def test_mass_triangles(self, bm):
+        mass = compute_triangle_mass_matrix(bm)
+        surface_area = self.calc_area(bm)
+        entries = 3 * len(bm.faces)
+        ones = np.ones(entries).reshape(entries, 1)
+        assert np.isclose(ones.T @ mass @ ones, 3 * surface_area)
+
     def execute(self, context):
         obj = get_selected_object(bpy.context)
 
         mesh = obj.data
         bm = bmesh.new()
         bm.from_mesh(mesh)
+
+        self.test_mass_vertices(bm)
+        self.test_mass_triangles(bm)
 
         self.test_laplace_matrix(bm)
 
