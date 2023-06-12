@@ -33,7 +33,7 @@ class ConstraintDeformationOp(bpy.types.Operator):
     affect_y: bpy.props.BoolProperty(name='Y', default=True)
     affect_z: bpy.props.BoolProperty(name='Z', default=True)
 
-    def _dims(self) -> list[int]:
+    def _affected_dims(self) -> list[int]:
 
         """
         Return the affected dimensions
@@ -74,12 +74,12 @@ class ConstraintDeformationOp(bpy.types.Operator):
         laplacian = mesh_laplacian(mesh)
 
         # get original vertex positions and laplacian coordinates of the mesh
-        og_vs = to_vxvyvz(mesh, self._dims())
+        og_vs = to_vxvyvz(mesh, self._affected_dims())
         og_deltas = [laplacian @ vd.reshape((len(vd), 1)) for vd in og_vs]
 
         # for each dimension, minimize weighted sum of constraint energy and deformation energy
         opt_vs = og_vs
-        for d_i, d in enumerate(self._dims()):
+        for d_i, d in enumerate(self._affected_dims()):
 
             constraint_matrix, constraint_rhs = self.construct_constraint_system(constraints[d], og_vs[d])
 
@@ -91,7 +91,7 @@ class ConstraintDeformationOp(bpy.types.Operator):
             opt_vs[d_i] = opt_vd
 
         # set vertices to updated vertex positions
-        set_vs(mesh, opt_vs, self._dims())
+        set_vs(mesh, opt_vs, self._affected_dims())
 
     def parse_constraints(self, obj):
 

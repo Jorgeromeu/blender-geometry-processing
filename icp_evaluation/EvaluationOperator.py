@@ -152,6 +152,7 @@ class EvaluationOperator(bpy.types.Operator):
             # if rendering, setup eevee
             scene = bpy.context.scene
             if camera:
+
                 # hide target
                 target.hide_render = True
 

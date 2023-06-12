@@ -123,6 +123,23 @@ class BrushOperator(AbstractBrushOperator):
         rotation = R.from_euler('xyz', [self.rx, self.ry, self.rz], degrees=True).as_matrix()
         return rotation @ scale
 
+    def execute(self, context):
+        return {'FINISHED'}
+
+    def draw(self, context):
+        layout = self.layout.grid_flow()
+        col = layout.column()
+
+        box = col.box()
+        box.prop(self, "scale_x")
+        box.prop(self, "scale_y")
+        box.prop(self, "scale_z")
+
+        box = col.box()
+        box.prop(self, "rx")
+        box.prop(self, "ry")
+        box.prop(self, "rz")
+
 class MatrixBrushOperator(AbstractBrushOperator):
     bl_idname = "object.matrixgradientbrush"
     bl_label = "GDP Gradient Brush (Matrix Input)"

@@ -2,6 +2,8 @@ import subprocess
 import sys
 
 from debug_operators.ComputeDifferentialCoordsOp import *
+from debug_operators.AttributeStatsOp import *
+from debug_operators.RenderCollection import *
 from debug_operators.NumericalTest import *
 from .BoundaryLoops import *
 from .BrushOperator import *
@@ -39,7 +41,7 @@ classes = [
     SmoothLaplacianOp,
 
     # For testing
-    ComputeDifferentialCoordsOp, NumericalTestOp,
+    ComputeDifferentialCoordsOp, NumericalTestOp, AttributeStatsOp, RenderCollection
 ]
 
 def register():
@@ -68,6 +70,8 @@ def register():
     # Testing operators
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(NumericalTestOp.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(ComputeDifferentialCoordsOp.bl_idname))
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(AttributeStatsOp.bl_idname))
+    bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(RenderCollection.bl_idname))
 
 def unregister():
     print('gdp-addon unregistered')
