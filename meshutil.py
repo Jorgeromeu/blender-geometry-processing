@@ -247,7 +247,6 @@ def compute_vertex_mass_matrix(mesh: BMesh, return_sparse=True) -> np.ndarray:
     factor = 1 / 3
     for v_ix, vertex in enumerate(mesh.verts):
         mass[v_ix][v_ix] = factor * combined_area(vertex)
-    print(mass)
     if return_sparse:
         mass = sp.csr_matrix(mass)
     return mass
