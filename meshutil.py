@@ -180,32 +180,34 @@ def compute_laplace_coords(bm: BMesh) -> dict[int, Vector]:
     return laplace_coords
 
 
-# def mesh_laplacian(mesh: BMesh) -> np.ndarray:
-#     n = len(mesh.verts)
-#     D = sp.lil_array((n, n))
-#     A = sp.lil_array((n, n))
-#
-#     for i, v_i in enumerate(mesh.verts):
-#
-#         vi_neighbors = neighbors(v_i)
-#
-#         D[i, i] = len(vi_neighbors)
-#
-#         for neighbor in vi_neighbors:
-#             A[i, neighbor.index] = 1
-#
-#     L = sp.eye(n) - sp.linalg.inv(D.tocsc()) @ A
-#     return L.tocsc()
+def mesh_laplacian_olga(mesh: BMesh) -> np.ndarray:
+    n = len(mesh.verts)
+    D = sp.lil_array((n, n))
+    A = sp.lil_array((n, n))
+
+    for i, v_i in enumerate(mesh.verts):
+
+        vi_neighbors = neighbors(v_i)
+
+        D[i, i] = len(vi_neighbors)
+
+        for neighbor in vi_neighbors:
+            A[i, neighbor.index] = 1
+
+    L = sp.eye(n) - sp.linalg.inv(D.tocsc()) @ A
+    return L.tocsc()
 
 
 def mesh_laplacian(mesh: BMesh) -> np.ndarray:
-    return sp.linalg.inv(compute_vertex_mass_matrix(mesh)) @ compute_cotangent_matrix(mesh)
+    m_inv = sp.linalg.inv(compute_vertex_mass_matrix(mesh))
+    s = compute_cotangent_matrix(mesh)
+    return m_inv @ s
 
 
 def compute_triangle_mass_matrix(mesh: BMesh, return_sparse=True) -> np.ndarray:
     """
     Returns the mash matrix for a given mesh.
-    M = [ A_{T1} 0 ...        0   ]
+    M_V = [ A_{T1} 0 ...        0   ]
         [   0    A_{T2} ...   0   ]
                     .
                     .
@@ -216,10 +218,13 @@ def compute_triangle_mass_matrix(mesh: BMesh, return_sparse=True) -> np.ndarray:
     """
 
     mass = np.eye(3 * len(mesh.faces))
+    i = 0
     for face_index, face in enumerate(mesh.faces):
-        ti_area = mass[(face_index * 3):(face_index * 3 + 3)]
-        ti_area[np.where(ti_area == 1)] = face.calc_area()
-
+        area = face.calc_area()
+        mass[i][i] = area
+        mass[i + 1][i + 1] = area
+        mass[i + 2][i + 2] = area
+        i += 3
     if return_sparse:
         mass = sp.csr_matrix(mass)
     return mass
@@ -234,16 +239,14 @@ def combined_area(vertex: BMVert) -> float:
 
 def compute_vertex_mass_matrix(mesh: BMesh, return_sparse=True) -> np.ndarray:
     """
-    #TODO CHANGE COMMENT
     Returns the mash matrix for a given mesh.
-    M = [ area(T1) 0 ...        0   ]
-        [   0    A_{T2} ...   0   ]
+    M = [ (1/3)area(T1) 0 ...        0   ]
+        [   0    (1/3)area(T2) ...   0   ]
                     .
                     .
                     .
-        [   0      0   ... A_{Tm} ],
+        [   0      0   ... (1/2)area(Tn) ],
     with $M \in \mathbb{R}^{n\timesn}$, where n is the number of vertices.
-    See `triangle_mass` for a definition of A_{T1}.
     """
 
     mass = np.eye(len(mesh.verts))
@@ -299,7 +302,8 @@ def compute_cotangent_matrix(bm: BMesh):
     """
     gradient_matrix = compute_gradient_matrix(bm)
     mass_matrix = compute_triangle_mass_matrix(bm)
-    return gradient_matrix.T @ mass_matrix @ gradient_matrix
+    result = gradient_matrix.T @ mass_matrix @ gradient_matrix
+    return result
 
 
 def compute_deformation_matrices(bm: BMesh) -> (sp.csr_matrix, sp.csr_matrix):
