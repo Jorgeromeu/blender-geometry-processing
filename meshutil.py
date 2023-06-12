@@ -180,7 +180,7 @@ def compute_laplace_coords(bm: BMesh) -> dict[int, Vector]:
     return laplace_coords
 
 
-def mesh_laplacian_olga(mesh: BMesh) -> np.ndarray:
+def mesh_laplacian(mesh: BMesh) -> np.ndarray:
     n = len(mesh.verts)
     D = sp.lil_array((n, n))
     A = sp.lil_array((n, n))
@@ -196,12 +196,6 @@ def mesh_laplacian_olga(mesh: BMesh) -> np.ndarray:
 
     L = sp.eye(n) - sp.linalg.inv(D.tocsc()) @ A
     return L.tocsc()
-
-
-def mesh_laplacian(mesh: BMesh) -> np.ndarray:
-    m_inv = sp.linalg.inv(compute_vertex_mass_matrix(mesh))
-    s = compute_cotangent_matrix(mesh)
-    return m_inv @ s
 
 
 def compute_triangle_mass_matrix(mesh: BMesh, return_sparse=True) -> np.ndarray:

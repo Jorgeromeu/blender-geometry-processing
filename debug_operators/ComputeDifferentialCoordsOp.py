@@ -1,6 +1,7 @@
 import meshutil
 from meshutil import *
 
+
 class ComputeDifferentialCoordsOp(bpy.types.Operator):
     bl_idname = "object.computecoords"
     bl_label = "GDP Compute Differential Coordinates"
@@ -85,7 +86,7 @@ class ComputeDifferentialCoordsOp(bpy.types.Operator):
         if self.compute_laplace == True:
             self.compute_laplace_coords(obj, bm, (vx, vy, vz))
 
-        if self.compute_cotangent_coords == True:
+        if self.compute_cotangent == True:
             self.compute_cotangent_coords(obj, bm, (vx, vy, vz))
 
         bm.free()

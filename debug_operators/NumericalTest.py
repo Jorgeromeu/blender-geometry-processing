@@ -69,12 +69,6 @@ class NumericalTestOp(bpy.types.Operator):
         ones = np.ones(entries).reshape(entries, 1)
         assert np.isclose((1 / 3) * (ones.T @ mass @ ones), surface_area)
 
-    def laplacians_test(self, bm):
-        laplacian1 = mesh_laplacian(bm).todense()
-        laplacian2 = mesh_laplacian_olga(bm).todense()
-        print(laplacian1 - laplacian2)
-        assert np.allclose(laplacian1, laplacian2)
-
     def cotangent_test(self, bm):
         s = compute_cotangent_matrix(bm)
         u = np.random.rand(len(bm.verts)).reshape(len(bm.verts), 1)
@@ -88,20 +82,19 @@ class NumericalTestOp(bpy.types.Operator):
         bm = bmesh.new()
         bm.from_mesh(mesh)
 
-        # self.test_mass_vertices(bm)
-        # self.test_mass_triangles(bm)
-        #
-        self.laplacians_test(bm)
-        #
-        #
-        # self.test_laplace_matrix(bm)
-        #
-        # gradient_matrix = compute_gradient_matrix(bm)
-        # for i in range(100):
-        #     print(i)
-        #     random_rotation = R.random().as_matrix()
-        #
-        #     self.test_gradient_matrix(bm, lambda p: float((random_rotation @ p)[0]), gradient_matrix)
+        self.test_mass_vertices(bm)
+        self.test_mass_triangles(bm)
+
+        self.cotangent_test(bm)
+
+        self.test_laplace_matrix(bm)
+
+        gradient_matrix = compute_gradient_matrix(bm)
+        for i in range(100):
+            print(i)
+            random_rotation = R.random().as_matrix()
+
+            self.test_gradient_matrix(bm, lambda p: float((random_rotation @ p)[0]), gradient_matrix)
 
         self.report({'INFO'}, 'Tests passed successfully')
 
