@@ -73,6 +73,7 @@ class NumericalTestOp(bpy.types.Operator):
         s = compute_cotangent_matrix(bm)
         u = np.random.rand(len(bm.verts)).reshape(len(bm.verts), 1)
         prod = u.T @ s @ u
+        assert s.shape[0] == s.shape[1]
         assert np.all(prod >= 0)
 
     def iterative_gradient_rotation_test(self, bm: BMesh):
@@ -80,25 +81,6 @@ class NumericalTestOp(bpy.types.Operator):
         for i in range(100):
             random_rotation = R.random().as_matrix()
             self.test_gradient_matrix(bm, lambda p: float((random_rotation @ p)[0]), gradient_matrix)
-
-    def iterative_gradient_linear_test(self, bm: BMesh):
-        # TODO: Finish or remove
-        gradient_matrix = compute_gradient_matrix(bm)
-        for i in range(100):
-            random_coefficients = np.random.rand(3).reshape((3, 1))
-            rand_constant = np.random.rand(1)[0]
-            vx, vy, vz = to_vxvyvz(bm, [0, 1, 2])
-            # Add function value to vertices
-            for i in range(len(vx)):
-                vert = np.array([vx[i], vy[i], vz[i]]).reshape((3, 1))
-                fun_val = rand_constant * vert + random_coefficients
-                print(fun_val)
-                vx[i] = fun_val[0]
-                vy[i] = fun_val[1]
-                vz[i] = fun_val[2]
-            grad_vx = gradient_matrix @ vx
-            grad_vy = gradient_matrix @ vy
-            grad_vz = gradient_matrix @ vz
 
     def execute(self, context):
         obj = get_selected_object(bpy.context)
@@ -117,7 +99,6 @@ class NumericalTestOp(bpy.types.Operator):
 
         # Test gradient matrix
         self.iterative_gradient_rotation_test(bm)
-        self.iterative_gradient_linear_test(bm)
 
         self.report({'INFO'}, 'Tests passed successfully')
 
