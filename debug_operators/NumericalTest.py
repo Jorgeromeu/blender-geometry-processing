@@ -76,7 +76,7 @@ class NumericalTestOp(bpy.types.Operator):
         assert s.shape[0] == s.shape[1]
         assert np.all(prod >= 0)
 
-    def iterative_gradient_rotation_test(self, bm: BMesh):
+    def iterative_gradient_test(self, bm: BMesh):
         gradient_matrix = compute_gradient_matrix(bm)
         for i in range(100):
             random_rotation = R.random().as_matrix()
@@ -98,7 +98,7 @@ class NumericalTestOp(bpy.types.Operator):
         self.cotangent_test(bm)
 
         # Test gradient matrix
-        self.iterative_gradient_rotation_test(bm)
+        self.iterative_gradient_test(bm)
 
         self.report({'INFO'}, 'Tests passed successfully')
 
