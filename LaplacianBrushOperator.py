@@ -1,30 +1,18 @@
-import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 import visualdebug
 from meshutil import *
 
-
 class LaplacianBrushOperator(bpy.types.Operator):
-    bl_idname = "object.geolaplacebrush"
-    bl_label = "GDP Laplace Brush"
     bl_options = {'REGISTER', 'UNDO'}
-
-    scale_x: bpy.props.FloatProperty(name='Scale x', default=1, min=0, max=1000)
-    scale_y: bpy.props.FloatProperty(name='Scale y', default=1, min=0, max=1000)
-    scale_z: bpy.props.FloatProperty(name='Scale z', default=1, min=0, max=1000)
-
-    rx: bpy.props.IntProperty(name='Rotation x', default=0, min=0, max=359)
-    ry: bpy.props.IntProperty(name='Rotation y', default=0, min=0, max=359)
-    rz: bpy.props.IntProperty(name='Rotation z', default=0, min=0, max=359)
 
     # bm: BMesh
     laplacian: sp.csc_matrix
     left_hand_side: sp.linalg.splu
 
     def matrix(self):
-        scale = (np.eye(3) * np.array([self.scale_x, self.scale_y, self.scale_z]))
-        rotation = R.from_euler('xyz', [self.rx, self.ry, self.rz], degrees=True).as_matrix()
+        scale = (np.eye(3) * np.array([self.scale_x, self.scale_z, self.scale_y]))
+        rotation = R.from_euler('xyz', [self.rx, self.rz, self.ry], degrees=True).as_matrix()
         return rotation @ scale
 
     def invoke(self, context, event):
@@ -121,3 +109,57 @@ class LaplacianBrushOperator(bpy.types.Operator):
         bm.free()
 
         return {'FINISHED'}
+
+class ScaleRotateLaplacianBrush(LaplacianBrushOperator):
+    bl_idname = "object.geolaplacebrush"
+    bl_label = "GDP Laplace Brush"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    scale_x: bpy.props.FloatProperty(name='Scale x', default=1, min=0, max=1000)
+    scale_y: bpy.props.FloatProperty(name='Scale y', default=1, min=0, max=1000)
+    scale_z: bpy.props.FloatProperty(name='Scale z', default=1, min=0, max=1000)
+
+    rx: bpy.props.IntProperty(name='Rotation x', default=0, min=0, max=359)
+    ry: bpy.props.IntProperty(name='Rotation y', default=0, min=0, max=359)
+    rz: bpy.props.IntProperty(name='Rotation z', default=0, min=0, max=359)
+
+    def matrix(self):
+        scale = (np.eye(3) * np.array([self.scale_x, self.scale_z, self.scale_y]))
+        rotation = R.from_euler('xyz', [self.rx, self.rz, self.ry], degrees=True).as_matrix()
+        return rotation @ scale
+
+class MatrixLaplacianBrushOp(LaplacianBrushOperator):
+    bl_idname = "object.matrixlaplacebrush"
+    bl_label = "GDP Laplacian Brush (Matrix Input)"
+
+    val_11: bpy.props.FloatProperty(default=1)
+    val_12: bpy.props.FloatProperty(default=0)
+    val_13: bpy.props.FloatProperty(default=0)
+    val_21: bpy.props.FloatProperty(default=0)
+    val_22: bpy.props.FloatProperty(default=1)
+    val_23: bpy.props.FloatProperty(default=0)
+    val_31: bpy.props.FloatProperty(default=0)
+    val_32: bpy.props.FloatProperty(default=0)
+    val_33: bpy.props.FloatProperty(default=1)
+
+    def matrix(self):
+        return np.array([
+            [self.val_11, self.val_12, self.val_13],
+            [self.val_21, self.val_22, self.val_23],
+            [self.val_31, self.val_32, self.val_33],
+        ])
+
+    def draw(self, context):
+        layout = self.layout.grid_flow()
+        row = layout.row()
+        row.prop(self, "val_11", text='')
+        row.prop(self, "val_12", text='')
+        row.prop(self, "val_13", text='')
+        row = layout.row()
+        row.prop(self, "val_21", text='')
+        row.prop(self, "val_22", text='')
+        row.prop(self, "val_23", text='')
+        row = layout.row()
+        row.prop(self, "val_31", text='')
+        row.prop(self, "val_32", text='')
+        row.prop(self, "val_33", text='')

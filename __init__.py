@@ -1,19 +1,19 @@
 import subprocess
 import sys
 
-from debug_operators.ComputeDifferentialCoordsOp import *
 from debug_operators.AttributeStatsOp import *
-from debug_operators.RenderCollection import *
+from debug_operators.ComputeDifferentialCoordsOp import *
 from debug_operators.NumericalTest import *
+from debug_operators.RenderCollection import *
 from .BoundaryLoops import *
-from .BrushOperator import *
 from .ComputeGenus import *
 from .ConnectedComponentsOp import *
 from .DeformationOperator import *
 from .ICPOperator import *
+from .LaplacianBrushOperator import *
+from .ScaleRotateGradientBrushOp import *
 from .SmoothingBrushOperator import SmoothLaplacianOp
 from .VolumeOperator import *
-from .LaplacianBrushOperator import *
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "scipy"])
 
@@ -36,10 +36,10 @@ classes = [
     ConstraintDeformationOp,
 
     # Gradient brushes
-    BrushOperator, MatrixBrushOperator,
+    ScaleRotateGradientBrushOp, MatrixGradientBrushOp,
 
     # Laplace coordinates brush
-    LaplacianBrushOperator,
+    ScaleRotateLaplacianBrush, MatrixLaplacianBrushOp,
 
     # Laplacian smoothing
     SmoothLaplacianOp,
@@ -47,7 +47,6 @@ classes = [
     # For testing
     ComputeDifferentialCoordsOp, NumericalTestOp, AttributeStatsOp, RenderCollection
 ]
-
 
 def register():
     print('gdp-addon registered')
@@ -69,16 +68,19 @@ def register():
     bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(SmoothLaplacianOp.bl_idname))
 
     # Brushes
-    bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(BrushOperator.bl_idname))
-    bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(MatrixBrushOperator.bl_idname))
-    bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(LaplacianBrushOperator.bl_idname))
+    bpy.types.VIEW3D_MT_edit_mesh.append(
+        lambda self, context: self.layout.operator(ScaleRotateGradientBrushOp.bl_idname))
+    bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(MatrixGradientBrushOp.bl_idname))
+    bpy.types.VIEW3D_MT_edit_mesh.append(
+        lambda self, context: self.layout.operator(ScaleRotateLaplacianBrush.bl_idname))
+    bpy.types.VIEW3D_MT_edit_mesh.append(lambda self, context: self.layout.operator(MatrixGradientBrushOp.bl_idname))
 
     # Testing operators
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(NumericalTestOp.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(ComputeDifferentialCoordsOp.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(AttributeStatsOp.bl_idname))
     bpy.types.VIEW3D_MT_object.append(lambda self, context: self.layout.operator(RenderCollection.bl_idname))
-
+    bpy.types.VIEW3D_PT_collections.append(lambda self, context: self.layout.operator(RenderCollection.bl_idname))
 
 def unregister():
     print('gdp-addon unregistered')

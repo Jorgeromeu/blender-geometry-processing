@@ -10,19 +10,18 @@ class RenderCollection(bpy.types.Operator):
     bl_label = "GDP Render Collection"
     bl_options = {'REGISTER', 'UNDO'}
 
-    collection_name: bpy.props.StringProperty(default='implicit_v_iter')
-
     def execute(self, context):
 
-        renders_path = pathlib.Path(self.collection_name)
+        collection_name = bpy.context.collection.name
+
+        renders_path = pathlib.Path(collection_name)
 
         if renders_path.exists():
             shutil.rmtree(renders_path)
         renders_path.mkdir()
 
-        collection = bpy.data.collections[self.collection_name]
+        collection = bpy.data.collections[collection_name]
 
-        # setup camera
         scene = bpy.context.scene
 
         meshes = [ob for ob in collection.all_objects if ob.type == 'MESH']
