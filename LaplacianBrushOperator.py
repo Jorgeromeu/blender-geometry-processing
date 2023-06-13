@@ -41,7 +41,7 @@ class LaplacianBrushOperator(bpy.types.Operator):
         bm = bmesh.from_edit_mesh(mesh)
 
         self.laplacian = mesh_laplacian(bm)
-        self.left_hand_side = sp.linalg.splu(2 * self.laplacian.T @ self.laplacian)
+        self.left_hand_side = sp.linalg.splu(self.laplacian.T @ self.laplacian)
 
         bm.free()
         return self.execute(context)
@@ -96,9 +96,9 @@ class LaplacianBrushOperator(bpy.types.Operator):
         modified_deltas_y = modified_delta_y.reshape(-1, 1)
         modified_deltas_z = modified_delta_z.reshape(-1, 1)
 
-        rhs_x = 2 * (self.laplacian.T @ modified_deltas_x).flatten()
-        rhs_y = 2 * (self.laplacian.T @ modified_deltas_y).flatten()
-        rhs_z = 2 * (self.laplacian.T @ modified_deltas_z).flatten()
+        rhs_x = (self.laplacian.T @ modified_deltas_x).flatten()
+        rhs_y = (self.laplacian.T @ modified_deltas_y).flatten()
+        rhs_z = (self.laplacian.T @ modified_deltas_z).flatten()
 
         center_og = centroid([corner.co for corner in bm.verts])
 
