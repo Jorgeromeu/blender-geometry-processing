@@ -10,7 +10,7 @@ class LaplacianBrushOperator(bpy.types.Operator):
     bl_label = "GDP Laplace Brush"
     bl_options = {'REGISTER', 'UNDO'}
 
-    scale_x: bpy.pr ops.FloatProperty(name='Scale x', default=1, min=0, max=1000)
+    scale_x: bpy.props.FloatProperty(name='Scale x', default=1, min=0, max=1000)
     scale_y: bpy.props.FloatProperty(name='Scale y', default=1, min=0, max=1000)
     scale_z: bpy.props.FloatProperty(name='Scale z', default=1, min=0, max=1000)
 
