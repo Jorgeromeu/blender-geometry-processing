@@ -16,6 +16,9 @@ from .SmoothingBrushOperator import SmoothLaplacianOp
 from .VolumeOperator import *
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "scipy"])
+subprocess.check_call([sys.executable, "-m", "pip", "install", "mkl"])
+subprocess.check_call([sys.executable, "-m", "pip", "install", "pypardiso"])
+
 
 bl_info = {
     "name": "Geometric Data Processing",

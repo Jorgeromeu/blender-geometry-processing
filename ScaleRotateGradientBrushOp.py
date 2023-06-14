@@ -1,6 +1,8 @@
 from scipy.spatial.transform import Rotation as R
 
 from meshutil import *
+import pypardiso
+
 
 class GradientBrushOperator(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
@@ -8,12 +10,13 @@ class GradientBrushOperator(bpy.types.Operator):
     gradient_matrix: sp.csr_matrix
     cotangent_matrix: sp.linalg.splu
     gtmv: sp.csr_matrix
+    pypard: pypardiso.PyPardisoSolver
 
     def matrix(self) -> np.ndarray:
         np.eye(3)
 
     def invoke(self, context, event):
-
+        self.pypard = pypardiso.PyPardisoSolver()
         obj = bpy.context.active_object
 
         # ensure in edit mode
@@ -28,7 +31,8 @@ class GradientBrushOperator(bpy.types.Operator):
         self.gradient_matrix, self.cotangent_matrix, self.gtmv = compute_deformation_matrices(bm)
 
         # compute and factorize cotangent matrix
-        self.cotangent_matrix = sp.linalg.splu(self.cotangent_matrix)
+        # self.cotangent_matrix = sp.linalg.splu(self.cotangent_matrix)
+        self.pypard.factorize(self.cotangent_matrix)
 
         bm.free()
 
@@ -87,9 +91,12 @@ class GradientBrushOperator(bpy.types.Operator):
 
         center_og = centroid([corner.co for corner in bm.verts])
 
-        new_vx = self.cotangent_matrix.solve(rhs_x)
-        new_vy = self.cotangent_matrix.solve(rhs_y)
-        new_vz = self.cotangent_matrix.solve(rhs_z)
+        # new_vx = self.cotangent_matrix.solve(rhs_x)
+        # new_vy = self.cotangent_matrix.solve(rhs_y)
+        # new_vz = self.cotangent_matrix.solve(rhs_z)
+        new_vx = self.pypard.solve(self.cotangent_matrix, rhs_x)
+        new_vy = self.pypard.solve(self.cotangent_matrix, rhs_y)
+        new_vz = self.pypard.solve(self.cotangent_matrix, rhs_z)
 
         # set vertex coordinates
         for v_i, v in enumerate(bm.verts):
@@ -108,6 +115,7 @@ class GradientBrushOperator(bpy.types.Operator):
 
         return {'FINISHED'}
 
+
 class ScaleRotateGradientBrushOp(GradientBrushOperator):
     bl_idname = "edit.gradientbrush"
     bl_label = "GDP Gradient Brush"
@@ -120,13 +128,15 @@ class ScaleRotateGradientBrushOp(GradientBrushOperator):
     ry: bpy.props.IntProperty(name='Rotation y', default=0, min=0, max=359)
     rz: bpy.props.IntProperty(name='Rotation z', default=0, min=0, max=359)
 
+    pypard: pypardiso.PyPardisoSolver
+
     def matrix(self):
         scale = (np.eye(3) * np.array([self.scale_x, self.scale_z, self.scale_y]))
         rotation = R.from_euler('xyz', [self.rx, self.rz, self.ry], degrees=True).as_matrix()
         return rotation @ scale
 
     def invoke(self, context, event):
-
+        self.pypard = pypardiso.PyPardisoSolver()
         obj = bpy.context.active_object
 
         # ensure in edit mode
@@ -141,7 +151,8 @@ class ScaleRotateGradientBrushOp(GradientBrushOperator):
         self.gradient_matrix, self.cotangent_matrix, self.gtmv = compute_deformation_matrices(bm)
 
         # compute and factorize cotangent matrix
-        self.cotangent_matrix = sp.linalg.splu(self.cotangent_matrix)
+        # self.cotangent_matrix = sp.linalg.splu(self.cotangent_matrix)
+        self.pypard.factorize(self.cotangent_matrix)
 
         bm.free()
 
@@ -200,9 +211,12 @@ class ScaleRotateGradientBrushOp(GradientBrushOperator):
 
         center_og = centroid([corner.co for corner in bm.verts])
 
-        new_vx = self.cotangent_matrix.solve(rhs_x)
-        new_vy = self.cotangent_matrix.solve(rhs_y)
-        new_vz = self.cotangent_matrix.solve(rhs_z)
+        # new_vx = self.cotangent_matrix.solve(rhs_x)
+        # new_vy = self.cotangent_matrix.solve(rhs_y)
+        # new_vz = self.cotangent_matrix.solve(rhs_z)
+        new_vx = self.pypard.solve(self.cotangent_matrix, rhs_x)
+        new_vy = self.pypard.solve(self.cotangent_matrix, rhs_y)
+        new_vz = self.pypard.solve(self.cotangent_matrix, rhs_z)
 
         # set vertex coordinates
         for v_i, v in enumerate(bm.verts):
@@ -234,6 +248,7 @@ class ScaleRotateGradientBrushOp(GradientBrushOperator):
         box.prop(self, "rx")
         box.prop(self, "ry")
         box.prop(self, "rz")
+
 
 class MatrixGradientBrushOp(GradientBrushOperator):
     bl_idname = "object.matrixgradientbrush"

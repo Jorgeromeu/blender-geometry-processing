@@ -2,6 +2,8 @@ from scipy.spatial.transform import Rotation as R
 
 import visualdebug
 from meshutil import *
+import pypardiso
+
 
 class LaplacianBrushOperator(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
@@ -9,6 +11,7 @@ class LaplacianBrushOperator(bpy.types.Operator):
     # bm: BMesh
     laplacian: sp.csc_matrix
     left_hand_side: sp.linalg.splu
+    pypard: pypardiso.PyPardisoSolver
 
     def matrix(self):
         scale = (np.eye(3) * np.array([self.scale_x, self.scale_z, self.scale_y]))
@@ -16,6 +19,8 @@ class LaplacianBrushOperator(bpy.types.Operator):
         return rotation @ scale
 
     def invoke(self, context, event):
+        self.pypard = pypardiso.PyPardisoSolver()
+
         visualdebug.clear_debug_collection()
 
         obj = bpy.context.active_object
@@ -29,7 +34,9 @@ class LaplacianBrushOperator(bpy.types.Operator):
         bm = bmesh.from_edit_mesh(mesh)
 
         self.laplacian = mesh_laplacian(bm)
-        self.left_hand_side = sp.linalg.splu(self.laplacian.T @ self.laplacian)
+        self.left_hand_side = self.laplacian.T @ self.laplacian
+        # self.left_hand_side = sp.linalg.splu(self.left_hand_side)
+        self.pypard.factorize(self.left_hand_side)
 
         bm.free()
         return self.execute(context)
@@ -90,9 +97,12 @@ class LaplacianBrushOperator(bpy.types.Operator):
 
         center_og = centroid([corner.co for corner in bm.verts])
 
-        new_vx = self.left_hand_side.solve(rhs_x)
-        new_vy = self.left_hand_side.solve(rhs_y)
-        new_vz = self.left_hand_side.solve(rhs_z)
+        # new_vx = self.left_hand_side.solve(rhs_x)
+        # new_vy = self.left_hand_side.solve(rhs_y)
+        # new_vz = self.left_hand_side.solve(rhs_z)
+        new_vx = self.pypard.solve(self.left_hand_side, rhs_x)
+        new_vy = self.pypard.solve(self.left_hand_side, rhs_y)
+        new_vz = self.pypard.solve(self.left_hand_side, rhs_z)
 
         for v_i, v in enumerate(bm.verts):
             v.co.x = new_vx[v_i]
@@ -109,6 +119,7 @@ class LaplacianBrushOperator(bpy.types.Operator):
         bm.free()
 
         return {'FINISHED'}
+
 
 class ScaleRotateLaplacianBrush(LaplacianBrushOperator):
     bl_idname = "object.geolaplacebrush"
@@ -127,6 +138,7 @@ class ScaleRotateLaplacianBrush(LaplacianBrushOperator):
         scale = (np.eye(3) * np.array([self.scale_x, self.scale_z, self.scale_y]))
         rotation = R.from_euler('xyz', [self.rx, self.rz, self.ry], degrees=True).as_matrix()
         return rotation @ scale
+
 
 class MatrixLaplacianBrushOp(LaplacianBrushOperator):
     bl_idname = "object.matrixlaplacebrush"
