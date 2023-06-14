@@ -1,17 +1,14 @@
 import bmesh
-import numpy as np
 import scipy.sparse as sp
 from bmesh.types import BMFace, BMEdge, BMVert
 
-from bpyutil import *
-
+from .bpyutil import *
 
 def mesh_from_object(object) -> BMesh:
     mesh = object.data
     bm = bmesh.new()
     bm.from_mesh(mesh)
     return bm
-
 
 def triangulate_object(obj):
     """
@@ -35,7 +32,6 @@ def triangulate_object(obj):
     bm.to_mesh(me)
     bm.free()
 
-
 def neighbors(v: BMVert, only_boundaries=False) -> list[BMVert]:
     neighbors = []
     for e in v.link_edges:
@@ -52,7 +48,6 @@ def neighbors(v: BMVert, only_boundaries=False) -> list[BMVert]:
 
     return neighbors
 
-
 def centroid(ps: list[Vector]):
     p_sum = Vector((0, 0, 0))
     for p in ps:
@@ -60,11 +55,9 @@ def centroid(ps: list[Vector]):
 
     return p_sum / len(ps)
 
-
 def is_boundary_edge(e: BMEdge) -> bool:
     # edge is a boundary loop when it only has one adjacent face
     return len(e.link_faces) == 1
-
 
 def compute_genus(bm: BMesh, n_boundaries: int) -> float:
     n_verts = len(list(bm.verts))
@@ -72,7 +65,6 @@ def compute_genus(bm: BMesh, n_boundaries: int) -> float:
     n_faces = len(list(bm.faces))
 
     return 1 - (n_verts - n_edges + n_faces + n_boundaries) / 2
-
 
 def compute_boundary_loops(bm: BMesh, select_edges=False) -> int:
     # find all edges that are boundaries
@@ -120,7 +112,6 @@ def compute_boundary_loops(bm: BMesh, select_edges=False) -> int:
 
     return n_loops
 
-
 def compute_mesh_volume(bm: BMesh) -> float:
     total_volume = 0
     for face in bm.faces:
@@ -131,7 +122,6 @@ def compute_mesh_volume(bm: BMesh) -> float:
         total_volume += tetra_volume
 
     return total_volume
-
 
 def compute_connected_components(bm: BMesh) -> int:
     n_components = 0
@@ -161,7 +151,6 @@ def compute_connected_components(bm: BMesh) -> int:
 
     return n_components
 
-
 def compute_laplace_coords(bm: BMesh) -> dict[int, Vector]:
     # precompute laplace coordinates of mesh
     laplace_coords = {}
@@ -179,7 +168,6 @@ def compute_laplace_coords(bm: BMesh) -> dict[int, Vector]:
 
     return laplace_coords
 
-
 def mesh_laplacian(mesh: BMesh) -> np.ndarray:
     n = len(mesh.verts)
     D = sp.lil_array((n, n))
@@ -196,7 +184,6 @@ def mesh_laplacian(mesh: BMesh) -> np.ndarray:
 
     L = sp.eye(n) - sp.linalg.inv(D.tocsc()) @ A
     return L.tocsc()
-
 
 def compute_triangle_mass_matrix(mesh: BMesh, return_sparse=True) -> np.ndarray:
     """
@@ -223,13 +210,11 @@ def compute_triangle_mass_matrix(mesh: BMesh, return_sparse=True) -> np.ndarray:
         mass = sp.csr_matrix(mass)
     return mass
 
-
 def combined_area(vertex: BMVert) -> float:
     sum = 0
     for linked_face in vertex.link_faces:
         sum += linked_face.calc_area()
     return sum
-
 
 def compute_vertex_mass_matrix(mesh: BMesh, return_sparse=True) -> np.ndarray:
     """
@@ -250,7 +235,6 @@ def compute_vertex_mass_matrix(mesh: BMesh, return_sparse=True) -> np.ndarray:
     if return_sparse:
         mass = sp.csr_matrix(mass)
     return mass
-
 
 def compute_gradient_matrix(bm: BMesh, return_sparse=True) -> np.ndarray:
     """
@@ -288,7 +272,6 @@ def compute_gradient_matrix(bm: BMesh, return_sparse=True) -> np.ndarray:
         global_gradient_matrix = sp.csr_matrix(global_gradient_matrix)
     return global_gradient_matrix
 
-
 def compute_cotangent_matrix(bm: BMesh):
     """
     Computes cotangent matrix of a mesh.
@@ -297,7 +280,6 @@ def compute_cotangent_matrix(bm: BMesh):
     mass_matrix = compute_triangle_mass_matrix(bm)
     result = gradient_matrix.T @ mass_matrix @ gradient_matrix
     return result
-
 
 def compute_deformation_matrices(bm: BMesh) -> (sp.csr_matrix, sp.csr_matrix):
     """
@@ -312,7 +294,6 @@ def compute_deformation_matrices(bm: BMesh) -> (sp.csr_matrix, sp.csr_matrix):
     gtmv = gradient_matrix_trans @ mass_matrix
 
     return gradient_matrix, cotangent, gtmv
-
 
 def to_vxvyvz(mesh: BMesh, dims: list[int]) -> list[np.ndarray]:
     """
@@ -331,7 +312,6 @@ def to_vxvyvz(mesh: BMesh, dims: list[int]) -> list[np.ndarray]:
         vs[i] = np.array(vs[i])
 
     return vs
-
 
 def set_vs(bm: BMesh, vs: list[np.ndarray], dims: list[int]) -> BMesh:
     """

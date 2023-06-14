@@ -1,5 +1,3 @@
-import bmesh
-
 from .meshutil import *
 
 class VolumeOperator(bpy.types.Operator):

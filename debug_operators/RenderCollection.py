@@ -3,7 +3,7 @@ import shutil
 
 import bpy.props
 
-from meshutil import *
+from ..meshutil import *
 
 class RenderCollection(bpy.types.Operator):
     bl_idname = "object.rendercollection"

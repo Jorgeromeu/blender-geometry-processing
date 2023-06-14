@@ -1,6 +1,6 @@
 from scipy.spatial.transform import Rotation as R
 
-from meshutil import *
+from .meshutil import *
 
 class GradientBrushOperator(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}

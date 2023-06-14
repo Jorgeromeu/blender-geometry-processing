@@ -1,6 +1,4 @@
-import matplotlib.pyplot as plt
-
-from meshutil import *
+import bpy
 
 class AttributeStatsOp(bpy.types.Operator):
     bl_idname = "object.attributestats"
@@ -14,12 +12,12 @@ class AttributeStatsOp(bpy.types.Operator):
         print(min(norms))
         print(max(norms))
 
-        plt.hist(norms, bins=30, edgecolor='black')
-        plt.xlabel(f'{obj.name}: {attrib_name}')
-        plt.ylabel(f'norm')
-        plt.savefig(filename)
-        plt.clf()
-        plt.cla()
+        # plt.hist(norms, bins=30, edgecolor='black')
+        # plt.xlabel(f'{obj.name}: {attrib_name}')
+        # plt.ylabel(f'norm')
+        # plt.savefig(filename)
+        # plt.clf()
+        # plt.cla()
 
     def execute(self, context):
         # ensure single object is selected

@@ -2,10 +2,10 @@ import numpy as np
 import scipy.sparse as sp
 from bmesh.types import BMesh
 
-from meshutil import mesh_laplacian, to_vxvyvz
+from .meshutil import mesh_laplacian, to_vxvyvz
 
 def iterative_laplace_smoothing(bm: BMesh, n_iters: int, step_size: float, laplacian=None) -> (
-np.ndarray, np.ndarray, np.ndarray):
+        np.ndarray, np.ndarray, np.ndarray):
     if laplacian is None:
         laplacian = mesh_laplacian(bm)
 
@@ -23,7 +23,6 @@ np.ndarray, np.ndarray, np.ndarray):
     return vx, vy, vz
 
 def implicit_laplace_smoothing(bm: BMesh, n_iters: int, step_size: float):
-
     if n_iters == 0:
         return to_vxvyvz(bm, dims=[0, 1, 2])
 

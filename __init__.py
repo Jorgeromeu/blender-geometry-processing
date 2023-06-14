@@ -1,10 +1,6 @@
 import subprocess
 import sys
 
-from debug_operators.AttributeStatsOp import *
-from debug_operators.ComputeDifferentialCoordsOp import *
-from debug_operators.NumericalTest import *
-from debug_operators.RenderCollection import *
 from .BoundaryLoops import *
 from .ComputeGenus import *
 from .ConnectedComponentsOp import *
@@ -14,6 +10,10 @@ from .LaplacianBrushOperator import *
 from .ScaleRotateGradientBrushOp import *
 from .SmoothingBrushOperator import SmoothLaplacianOp
 from .VolumeOperator import *
+from .debug_operators.AttributeStatsOp import *
+from .debug_operators.ComputeDifferentialCoordsOp import *
+from .debug_operators.NumericalTest import *
+from .debug_operators.RenderCollection import *
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "scipy"])
 

@@ -1,7 +1,6 @@
 from scipy.spatial.transform import Rotation as R
 
-import visualdebug
-from meshutil import *
+from .meshutil import *
 
 class LaplacianBrushOperator(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
@@ -16,7 +15,6 @@ class LaplacianBrushOperator(bpy.types.Operator):
         return rotation @ scale
 
     def invoke(self, context, event):
-        visualdebug.clear_debug_collection()
 
         obj = bpy.context.active_object
 

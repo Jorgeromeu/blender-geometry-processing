@@ -1,5 +1,5 @@
-from meshutil import *
-from smoothing_utils import iterative_laplace_smoothing, implicit_laplace_smoothing
+from .meshutil import *
+from .smoothing_utils import iterative_laplace_smoothing, implicit_laplace_smoothing
 
 class SmoothLaplacianOp(bpy.types.Operator):
     bl_idname = "object.smoothlaplacianop"

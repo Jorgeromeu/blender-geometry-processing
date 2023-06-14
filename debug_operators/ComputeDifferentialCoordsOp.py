@@ -1,6 +1,9 @@
-import meshutil
-from meshutil import *
+import bmesh
+import bpy
+import numpy as np
+from mathutils import Vector
 
+from ..meshutil import set_float_vertex_attrib, set_vector_face_attrib, compute_gradient_matrix, to_vxvyvz
 
 class ComputeDifferentialCoordsOp(bpy.types.Operator):
     bl_idname = "object.computecoords"
@@ -18,7 +21,7 @@ class ComputeDifferentialCoordsOp(bpy.types.Operator):
     def compute_embedding_gradients(self, obj, bm, embedding):
 
         if self.gradient_matrix is None:
-            self.gradient_matrix = meshutil.compute_gradient_matrix(bm)
+            self.gradient_matrix = compute_gradient_matrix(bm)
 
         vx, vy, vz = embedding
 

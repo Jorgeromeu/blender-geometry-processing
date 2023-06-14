@@ -1,8 +1,6 @@
-import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-from meshutil import *
-
+from ..meshutil import *
 
 class NumericalTestOp(bpy.types.Operator):
     bl_idname = "object.numercaltest"
