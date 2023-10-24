@@ -2,8 +2,7 @@
 
 A collection of geometry processing algorithms implemented as a Blender addon:
 
-
-[![video](https://github.com/Jorgeromeu/blender-geometry-processing/assets/40536127/525e1dc9-d2e6-4041-b6af-01b883cf4fc4)](https://www.youtube.com/watch?v=GvlJ_SaGOhw)
+[![Video](https://img.youtube.com/vi/GvlJ_SaGOhw/maxresdefault.jpg)](https://www.youtube.com/watch?v=GvlJ_SaGOhw)
 
 ## Pycharm Setup instructions
 
