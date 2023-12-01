@@ -4,6 +4,14 @@ A collection of geometry processing algorithms implemented as a Blender addon:
 
 [![Video](https://img.youtube.com/vi/GvlJ_SaGOhw/maxresdefault.jpg)](https://www.youtube.com/watch?v=GvlJ_SaGOhw)
 
+# Features
+
+- Iterative Closest Point (ICP)
+- Computing mesh properties (Volume, Genus, Boundary num loops, num connected components, ...)
+- Gradient based deformation brushes
+- Laplace smoothing
+- Constraint based deformation
+
 ## Pycharm Setup instructions
 
 1. Create a folder anywhere on your computer, with the following three empty folders:
